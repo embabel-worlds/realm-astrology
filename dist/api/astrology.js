@@ -8751,6 +8751,12 @@ async function askAstrologer(ctx, args) {
   const sect = sectOf(chart);
   const on = (args.on ?? "").trim();
   const moving = on ? transitsOf(chart, /* @__PURE__ */ new Date(`${on}T12:00:00Z`), (lon) => houseOf(lon, chart.cusps)).filter((t) => t.major).slice(0, 12) : [];
+  const dayOf = on ? /* @__PURE__ */ new Date(`${on}T12:00:00Z`) : null;
+  const daySky = dayOf ? skyAt(dayOf).map((b) => {
+    const h = houseOf(b.longitude, chart.cusps);
+    return `  ${b.body.padEnd(8)} ${position(b.longitude).padEnd(18)} ${b.retrograde ? "retrograde" : "direct"}${h ? `, crossing natal house ${h}` : ""}`;
+  }).join("\n") : "";
+  const dayMoon = dayOf ? moonState(dayOf) : null;
   const majors = natalAspects(chart).filter((a) => a.major).slice(0, 12).map((a) => `  ${a.transiting} ${a.aspect} ${a.natal}, orb ${a.orb.toFixed(2)}\xB0`).join("\n");
   const said = (args.history ?? []).slice(-MAX_TURNS).map((h) => `${h.role === "assistant" ? who.name : "Them"}: ${h.text}`).join("\n\n");
   const keeps = who.metrics.length > 0 && !!(args.conversation ?? "").trim();
@@ -8816,8 +8822,14 @@ ${facts}
 Major aspects:
 ${majors || "  none within orb"}
 ${on ? `
-THE SKY ON ${on}, against this chart (tightest orb first, majors only). This is what a question about
-"today" is asking about \u2014 answer it from these, not from the natal placements alone:
+THE SKY ON ${on} \u2014 where each body ACTUALLY is that day, COMPUTED. Any question about where a
+planet is now, or what is retrograde now, is answered from THIS table and nothing else. The natal
+placements above are where they stood at birth: a different thing, never today's, never offered as
+today's. If a body is not here, say so rather than reaching for its natal degree.
+${daySky}
+  Moon phase: ${dayMoon ? `${dayMoon.phase}, ${(dayMoon.illuminated * 100).toFixed(0)}% lit` : "unknown"}
+
+ITS ASPECTS TO THIS CHART on ${on} (tightest orb first, majors only) \u2014 what the day is doing to them:
 ${moving.map((t) => `  transiting ${t.transiting}${t.transitingRetrograde ? " (retrograde)" : ""} ${t.aspect} natal ${t.natal}, orb ${t.orb.toFixed(2)}\xB0${t.applying === true ? ", applying" : t.applying === false ? ", separating" : ""}${t.throughHouse ? `, crossing house ${t.throughHouse}` : ""}`).join("\n") || "  nothing within orb"}
 ` : ""}${caveats.length ? `
 Limits on this chart, which you must respect and state when they bear on the answer:
