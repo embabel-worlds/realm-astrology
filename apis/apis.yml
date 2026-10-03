@@ -1,0 +1,25 @@
+# Two sources, no credential between them.
+#
+# Neither is how a chart is CAST — the ephemeris is in the realm's own bundle, so a chart needs no
+# network at all. These two do the jobs an offline bundle cannot: turn a place name into the
+# coordinates and zone a chart needs, and let a reader audit the realm's arithmetic against the
+# authority on where the planets were.
+- url: open-meteo-geocoding.yml
+  name: open_meteo_geocoding
+  type: openapi
+  auth: none
+  headers:
+    User-Agent: "embabel-realm-astrology/0.1 (https://github.com/embabel-worlds/realm-astrology)"
+  operation-ids:
+    - geocodeSearch
+
+# JPL Horizons is PACED by its publisher and answers one body at a time, so the verb that uses it
+# asks for ten rows per chart and caches them for good. A position in 1962 is not going to change.
+- url: nasa-horizons.yml
+  name: nasa_horizons
+  type: openapi
+  auth: none
+  headers:
+    User-Agent: "embabel-realm-astrology/0.1 (https://github.com/embabel-worlds/realm-astrology)"
+  operation-ids:
+    - horizonsLookup

@@ -1,0 +1,107 @@
+# The people you keep, and the sky over your own data.
+#
+# Everything above this works on birth data typed into a parameter. These views work on a stored
+# BirthRecord instead, so your own chart is a question with no arguments — which is the difference
+# between a website and an appliance.
+#
+# To store one, use the host's `createEntry` on BirthRecord. Build `chartSpec` with the `birthSpec`
+# verb rather than assembling the string yourself; the birthplace zone is the one field that, got
+# wrong, moves the rising sign by a whole sign.
+
+- name: MyChart
+  description: Your own natal chart, from birth data this world already holds. No arguments — that is the point. Returns nothing if you have not stored a BirthRecord yet.
+  params:
+    subject:
+      type: string
+      default: "self"
+      description: "Whose record to read. `self` is you; anyone else is who you called them."
+  cypher: |
+    MATCH (b:BirthRecord {subject: $subject})-[:HAS_CHART]->(c:NatalChart)
+    RETURN b.subject AS subject, b.placeName AS birthplace,
+           c.sunSign AS sun, c.moonSign AS moon, c.risingSign AS rising,
+           c.ascendant AS ascendant, c.houseSystem AS houseSystem,
+           c.timeKnown AS timeKnown,
+           c.degradedReason AS houseSystemDegraded,
+           c.tzAmbiguity AS timeZoneDoubt,
+           c.moonSignAmbiguous AS moonSignUncertain
+
+- name: MyPlacements
+  description: Every body in your own chart, from the birth data this world holds.
+  params:
+    subject: { type: string, default: "self", description: "Whose record to read." }
+  cypher: |
+    MATCH (b:BirthRecord {subject: $subject})-[:HAS_PLACEMENT]->(p:Placement)
+    RETURN p.body AS body, p.position AS position, p.house AS house, p.retrograde AS retrograde
+    ORDER BY p.longitude
+
+- name: MyTransits
+  description: What the sky is doing to YOUR chart on a given day, slow bodies first — those are the ones that last long enough to mean anything.
+  params:
+    subject: { type: string, default: "self", description: "Whose record to read." }
+    on:
+      type: string
+      default: "2026-10-03"
+      description: "The day to read, YYYY-MM-DD."
+  cypher: |
+    MATCH (b:BirthRecord {subject: $subject})
+    MATCH (d:TransitDay {spec: b.chartSpec + '@' + $on})-[:HAS_TRANSIT]->(t:Transit)
+    WHERE t.major
+    RETURN t.transiting AS transiting, t.aspect AS aspect, t.natal AS natalPoint,
+           t.orb AS orb, t.applying AS applying, t.throughHouse AS crossingHouse,
+           t.transitingRetrograde AS retrograde
+    ORDER BY
+      CASE WHEN t.transiting IN ['Saturn','Uranus','Neptune','Pluto'] THEN 0
+           WHEN t.transiting = 'Jupiter' THEN 1 ELSE 2 END,
+      t.orb
+
+- name: MyReading
+  description: One of the four astrologers reading your own chart. `scope` is `natal`, or a date for that day's sky.
+  params:
+    subject: { type: string, default: "self", description: "Whose record to read." }
+    astrologer:
+      type: string
+      default: "mercer"
+      description: "`hypatia`, `juno`, `mercer` or `cassius`."
+    scope:
+      type: string
+      default: "natal"
+      description: "`natal`, or a date as YYYY-MM-DD."
+  cypher: |
+    MATCH (b:BirthRecord {subject: $subject})
+    MATCH (q:ReadingRequest {spec: b.chartSpec + '#' + $astrologer + '#' + $scope})-[:HAS_READING]->(r:Reading)
+    RETURN r.astrologerName AS astrologer, r.reading AS reading, r.caveats AS caveats
+
+- name: PeopleIKeep
+  description: Everyone whose birth data this world holds, with their signs — and which of them have no birth time, so you know whose chart is missing its houses.
+  cypher: |
+    MATCH (b:BirthRecord)-[:HAS_CHART]->(c:NatalChart)
+    RETURN b.subject AS subject, b.relationship AS relationship,
+           b.bornOn AS bornOn, b.placeName AS birthplace,
+           c.sunSign AS sun, c.moonSign AS moon, c.risingSign AS rising,
+           c.timeKnown AS timeKnown,
+           c.moonSignAmbiguous AS moonSignUncertain,
+           b.note AS provenance
+    ORDER BY b.subject
+
+- name: BirthdaysComing
+  description: Whose birthday falls in the next so-many days, from the birth records this world holds — with the sign the Sun will be in. A real use for birth data that has nothing to do with astrology.
+  params:
+    withinDays:
+      type: int
+      default: 30
+      description: "How far ahead to look."
+  cypher: |
+    MATCH (b:BirthRecord)
+    WHERE b.bornOn IS NOT NULL
+    WITH b, date(b.bornOn) AS born, date() AS today
+    WITH b, born, today,
+         date({year: today.year, month: born.month, day: born.day}) AS thisYear
+    WITH b, born, today,
+         CASE WHEN thisYear >= today THEN thisYear
+              ELSE date({year: today.year + 1, month: born.month, day: born.day}) END AS next
+    WHERE duration.inDays(today, next).days <= $withinDays
+    RETURN b.subject AS subject, b.relationship AS relationship,
+           next AS birthday,
+           duration.inDays(today, next).days AS daysAway,
+           next.year - born.year AS turning
+    ORDER BY daysAway

@@ -1,0 +1,47 @@
+openapi: 3.0.3
+info:
+  title: NASA JPL Horizons — apparent geocentric ecliptic coordinates
+  version: "1"
+  description: >
+    The authority on where a body was. Quantity 31 is the observer's ecliptic longitude and
+    latitude: apparent, geocentric, true ecliptic of date — the astrologer's coordinate, and the
+    one this realm's own ephemeris produces, so the two compare without conversion.
+
+    Horizons answers in a text table wrapped in JSON under `result`. The realm parses the two
+    numbers off each line between $$SOE and $$EOE and nothing else. Horizons output is in the
+    public domain (NASA/JPL-Caltech).
+servers:
+  - url: https://ssd.jpl.nasa.gov/api
+paths:
+  /horizons.api:
+    get:
+      operationId: horizonsLookup
+      summary: One minute of ephemeris for one body, as seen from the Earth's centre.
+      description: >
+        Parameter values are sent with the single quotes Horizons expects, e.g. COMMAND='499'.
+        The span is one minute at STEP_SIZE='1 m', so the first row is exactly the instant asked
+        for; Horizons refuses a request for a single instant with no span to step through.
+      parameters:
+        - { name: format, in: query, required: true, schema: { type: string, enum: [json, text] } }
+        - { name: COMMAND, in: query, required: true, schema: { type: string }, description: "Quoted body id, e.g. '499' for Mars. The body centre, not the barycentre." }
+        - { name: OBJ_DATA, in: query, required: false, schema: { type: string } }
+        - { name: MAKE_EPHEM, in: query, required: false, schema: { type: string } }
+        - { name: EPHEM_TYPE, in: query, required: false, schema: { type: string }, description: "'OBSERVER'" }
+        - { name: CENTER, in: query, required: false, schema: { type: string }, description: "'500@399' — the Earth's centre." }
+        - { name: START_TIME, in: query, required: true, schema: { type: string }, description: "'YYYY-MMM-DD HH:MM:SS', UTC" }
+        - { name: STOP_TIME, in: query, required: true, schema: { type: string } }
+        - { name: STEP_SIZE, in: query, required: false, schema: { type: string } }
+        - { name: QUANTITIES, in: query, required: false, schema: { type: string }, description: "'31' — ecliptic longitude and latitude." }
+        - { name: CAL_FORMAT, in: query, required: false, schema: { type: string } }
+        - { name: ANG_FORMAT, in: query, required: false, schema: { type: string }, description: "'DEG' — decimal degrees rather than sexagesimal." }
+      responses:
+        "200":
+          description: The ephemeris, as text under `result`.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  signature: { type: object, additionalProperties: true }
+                  result: { type: string }
+                additionalProperties: true

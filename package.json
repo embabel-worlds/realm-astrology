@@ -1,0 +1,24 @@
+{
+  "name": "realm-astrology",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Natal charts, transits and the astrologers who read them, as an Embabel realm",
+  "license": "Apache-2.0",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "build": "node scripts/build.mjs && embabel-build-manifest",
+    "check": "npm run typecheck && npm test && npm run build"
+  },
+  "dependencies": {
+    "astronomy-engine": "2.1.19",
+    "deepnatal": "0.1.3"
+  },
+  "devDependencies": {
+    "@embabel/runtime-types": "file:../assistant/tooling/runtime-types",
+    "@types/node": "^20.0.0",
+    "esbuild": "^0.25.0",
+    "typescript": "^5.4.0",
+    "vitest": "^3.2.7"
+  }
+}

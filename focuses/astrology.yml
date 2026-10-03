@@ -1,0 +1,11 @@
+# `/focus astrology` puts one of the astrologers in front of you and strips the competing skills
+# out of the chat surface, so a question about a chart cannot lose to a realm that happens to share
+# a word with it.
+#
+# Mercer is the default because the column is the register a person asking "what's my horoscope"
+# expects. Switch reader with the host's persona picker: hypatia, juno, mercer, cassius.
+name: astrology
+description: Charts, transits and the astrologers who read them.
+realms:
+  - astrology
+defaultPersona: mercer

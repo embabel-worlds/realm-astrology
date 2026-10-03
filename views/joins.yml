@@ -1,0 +1,82 @@
+# The sky over data this world already holds.
+#
+# `SkyMoment` is keyed on an instant and nothing else, so anything with a timestamp can be given a
+# sky: a workflow run, an invoice, a conversation, a commit. That is the join this realm exists to
+# make, and it is the one that needs the most care — because a correlation found this way is a
+# coincidence, and a view that reports one without its base rate is building a credulity machine.
+#
+# So every view here computes the denominator. Mercury is retrograde for roughly a fifth of all
+# time; if a fifth of your failed builds happened under it, nothing happened. The view says that
+# out loud rather than leaving the reader to be impressed by the numerator.
+#
+# DEPENDENCY: these need realm-github-actions installed and a reachable GitHub. Without it they
+# return no rows, which is correct — this realm ships no GitHub of its own.
+#
+# WRITTEN AGAINST THE DECLARED CONTRACT, NOT YET RUN LIVE: realm-github-actions' own
+# types/actions.yml is the source for every WorkflowRun property used here (`created_at`,
+# `conclusion`, `status`, `repository`). GitHub was unreachable from this appliance when these were
+# authored — api.github.com timed out — so the Cypher is checked against the declaration and the
+# figures have not been reconciled against a real run history. Run them before trusting a number.
+
+- name: BuildsUnderMercuryRetrograde
+  description: >-
+    Whether your CI really does fail more when Mercury is retrograde, with the base rate beside it.
+    Mercury is retrograde about a fifth of the time, so compare the two failure rates — not the raw
+    counts. This is a joke with a correct denominator, which is the only kind worth telling.
+  params:
+    repo:
+      type: string
+      default: "embabel-worlds/realm-chess"
+      description: "The repository, as `owner/name`."
+  cypher: |
+    MATCH (r:GitHubRepository {full_name: $repo})-[:HAS_WORKFLOW_RUN]->(w:WorkflowRun)
+    WHERE w.status = 'completed' AND w.created_at IS NOT NULL
+    // One sky per DAY, not per run: many runs share a day, and a retrograde is a fact about weeks.
+    WITH w, substring(w.created_at, 0, 10) + 'T12:00:00Z' AS day
+    MATCH (s:SkyMoment {instant: day})-[:HAS_POSITION]->(m:SkyPosition {body: 'Mercury'})
+    WITH m.retrograde AS mercuryRetrograde,
+         count(*) AS runs,
+         sum(CASE WHEN w.conclusion = 'failure' THEN 1 ELSE 0 END) AS failures
+    RETURN mercuryRetrograde,
+           runs,
+           failures,
+           round(100.0 * failures / runs, 1) AS failureRatePercent,
+           'Compare the two rates, not the counts. Mercury is retrograde about 20% of the time.' AS howToReadThis
+    ORDER BY mercuryRetrograde
+
+- name: BuildFailuresByMoonPhase
+  description: >-
+    Your failed builds by the Moon's phase, with how many builds ran in each phase so the rate is
+    visible. Eight phases means eight small buckets: expect noise, and expect the largest bucket to
+    look meaningful when it is just the biggest.
+  params:
+    repo:
+      type: string
+      default: "embabel-worlds/realm-chess"
+      description: "The repository, as `owner/name`."
+  cypher: |
+    MATCH (r:GitHubRepository {full_name: $repo})-[:HAS_WORKFLOW_RUN]->(w:WorkflowRun)
+    WHERE w.status = 'completed' AND w.created_at IS NOT NULL
+    WITH w, substring(w.created_at, 0, 10) + 'T12:00:00Z' AS day
+    MATCH (s:SkyMoment {instant: day})-[:HAS_POSITION]->(p:SkyPosition {body: 'Moon'})
+    WITH p.moonPhase AS moonPhase,
+         count(*) AS runs,
+         sum(CASE WHEN w.conclusion = 'failure' THEN 1 ELSE 0 END) AS failures
+    RETURN moonPhase, runs, failures,
+           round(100.0 * failures / runs, 1) AS failureRatePercent
+    ORDER BY failureRatePercent DESC
+
+- name: SkyWhenThisHappened
+  description: >-
+    The sky over one moment you already have a timestamp for — the general form of the join. Paste
+    any ISO instant from any realm's data and this gives you the figure above it.
+  params:
+    instant:
+      type: string
+      default: "2026-10-03T12:00:00Z"
+      description: "An ISO 8601 instant from anywhere in this world's data."
+  cypher: |
+    MATCH (s:SkyMoment {instant: $instant})-[:HAS_POSITION]->(p:SkyPosition)
+    RETURN p.body AS body, p.position AS position, p.retrograde AS retrograde,
+           p.moonPhase AS moonPhase
+    ORDER BY p.longitude

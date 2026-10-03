@@ -1,0 +1,65 @@
+name: astrology
+description: |
+  Natal charts, transits and the sky over anything you have a timestamp for.
+
+  The ephemeris is in the realm's own bundle, so a chart needs no network, no key
+  and no account: positions from astronomy-engine, which agrees with NASA JPL
+  Horizons to under an arcsecond on a planet, and houses, ascendant and — the
+  thing that is actually hard — the birthplace's historical time zone from
+  deepnatal, which refuses to cast a chart rather than guess at a daylight-saving
+  hole or a pre-standard-time zone.
+
+  Everything is a Virtual Cypher hop from a pinned key, so a chart is a query
+  and a REST call rather than only a page: pin a BirthMoment for the chart, its
+  placements, its aspects and its cusps; a TransitDay for what the sky is doing
+  to it; a SkyMoment for the sky over any instant at all, which is how a commit,
+  a failed build or a closed deal gets a sky over it.
+
+  What makes it unusual is that it tells you how good it is. Every chart carries
+  how far its two independent ephemerides disagreed, whether Placidus had to be
+  abandoned for the latitude, whether another time zone is defensible for those
+  coordinates, and whether an unknown birth time leaves the Moon's sign
+  undecided. And VERIFIED_BY audits the arithmetic against NASA, live, for any
+  chart — so the numbers are checkable rather than merely confident.
+
+  Keyless. Nothing to configure.
+version: 0.1.0
+
+# Experimental: the computation is verified against NASA and against astro-seek's published
+# charts, but the realm is new, nothing has been read in anger yet, and the astrologers' readings
+# are a model's judgement rather than a computed fact.
+maturity: experimental
+url: https://github.com/embabel-worlds/realm-astrology
+author: Rod Johnson
+
+# docker, not wasm: the ephemeris and the house engine are npm dependencies bundled into the
+# handler, and that is what makes a chart need no network.
+host: docker
+tags:
+  - astrology
+  - astronomy
+  - ephemeris
+  - virtual-cypher
+  - nasa
+exports:
+  - open_meteo_geocoding
+  - nasa_horizons
+  - BirthMoment
+  - TransitDay
+  - SkyMoment
+  - PlaceQuery
+  - BirthRecord
+  - NatalChart
+  - Placement
+  - ChartAspect
+  - HouseCusp
+  - Transit
+  - SkyPosition
+  - Birthplace
+  - NasaCheck
+  - ReadingRequest
+  - Reading
+  # A realm with an exports list loads only the skills it NAMES. Leave this out and the skill is
+  # dropped at load with nothing but a debug line, and `readChart` then fails at the model call
+  # saying no such skill exists — which is a long way from the cause.
+  - astrology-reading

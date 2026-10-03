@@ -1,0 +1,140 @@
+# Six producers compute and two fetch.
+#
+# Every one takes its keys with `keyArg` rather than `keyArgs`: a birth key carries pipes, a comma
+# and the slash in `Europe/London`, and `keyArgs` would make those path segments. realm-chess has
+# the same constraint for the same reason — a FEN has slashes and spaces in it.
+#
+# The computing producers cache `immutable`. That is not a guess about volatility: a chart is a
+# deterministic function of an instant and a place, so the answer for a key is the same answer
+# forever, and the cache is pure saving. There is nothing to invalidate.
+
+# ── Computed in the realm's own bundle: no network, no key, no rate limit ──────────────────────
+
+- name: natalChart
+  kind: remote
+  operation: natalChart
+  keyArg: specs
+  records: "$[*]"
+  # Filters nothing. One chart cast produces every body, every cusp and every aspect at once, so
+  # there is no narrower fetch to ask for; the graph does the filtering, correctly.
+  pushdown: []
+  cache: { kind: immutable }
+
+- name: placements
+  kind: remote
+  operation: placements
+  keyArg: specs
+  records: "$[*]"
+  # Filters nothing. One chart cast produces every body, every cusp and every aspect at once, so
+  # there is no narrower fetch to ask for; the graph does the filtering, correctly.
+  pushdown: []
+  cache: { kind: immutable }
+
+- name: chartAspects
+  kind: remote
+  operation: aspects
+  keyArg: specs
+  records: "$[*]"
+  # Filters nothing. One chart cast produces every body, every cusp and every aspect at once, so
+  # there is no narrower fetch to ask for; the graph does the filtering, correctly.
+  pushdown: []
+  cache: { kind: immutable }
+
+# A chart cast without a birth time has no cusps, and that absence is as permanent as a row.
+- name: houseCusps
+  kind: remote
+  operation: houseCusps
+  keyArg: specs
+  records: "$[*]"
+  # Filters nothing. One chart cast produces every body, every cusp and every aspect at once, so
+  # there is no narrower fetch to ask for; the graph does the filtering, correctly.
+  pushdown: []
+  cache: { kind: immutable }
+
+- name: transits
+  kind: remote
+  operation: transits
+  keyArg: specs
+  records: "$[*]"
+  # Filters nothing. One chart cast produces every body, every cusp and every aspect at once, so
+  # there is no narrower fetch to ask for; the graph does the filtering, correctly.
+  pushdown: []
+  cache: { kind: immutable }
+
+# Keyed on an explicit instant, never on "now", so this is deterministic too. A view that wants the
+# current sky passes the instant in; the producer has no clock of its own.
+- name: skyAt
+  kind: remote
+  operation: skyAt
+  keyArg: instants
+  records: "$[*]"
+  # Filters nothing. One chart cast produces every body, every cusp and every aspect at once, so
+  # there is no narrower fetch to ask for; the graph does the filtering, correctly.
+  pushdown: []
+  cache: { kind: immutable }
+
+# ── Fetched ───────────────────────────────────────────────────────────────────────────────────
+
+# Gazetteers do change — a place gains a population figure, a zone is split. A month is fresh
+# enough. `negativeTtlSeconds` is set because a name nobody recognises is the common case when
+# somebody is typing, and without it every misspelling would be re-fetched on every keystroke.
+- name: birthplaces
+  kind: remote
+  operation: resolveBirthplace
+  keyArg: names
+  records: "$[*]"
+  args:
+    # A shortlist, not the book: Open-Meteo will return 100 matches for a common name, and past
+    # about twenty the name is too vague to disambiguate a birthplace by anyway. There is no
+    # offset parameter, so `paging:` cannot be declared honestly — a name with more matches than
+    # this gets a PARTIAL_RESULT warning, which is the true answer.
+    count: 20
+  # The gazetteer matches on the name, which IS the key, and filters nothing else.
+  pushdown: []
+  cache: { kind: ttl, seconds: 2592000, negativeTtlSeconds: 86400 }
+
+# Ten requests per chart against a publisher-paced source, so the cache is a year and the absence
+# of a row — an instant outside the Horizons span — is cached just as long. Where NASA cannot be
+# reached at all the verb throws instead of returning a row, so an outage is never cached as a
+# verdict.
+- name: nasaChecks
+  kind: remote
+  operation: verifyAgainstNasa
+  keyArg: specs
+  records: "$[*]"
+  args:
+    # The one pushdown in the realm that buys anything: `WHERE c.body = 'Mars'` is rendered here
+    # and the verb asks Horizons for one body instead of ten.
+    #
+    # Verified live before it was declared, as the spec requires: the same uncached chart took
+    # 21.3s for all ten bodies and 2.5s filtered to Mars, with no UNPUSHED_FILTER warning. The
+    # counts differ, so the filter is really being applied and not silently discarded.
+    #
+    # An unrendered placeholder means no body was asked for, and the verb then checks all ten.
+    bodies: "{filters}"
+  pushdown:
+    - property: body
+      op: EQUALS
+      # The native fragment is the body name itself: this verb's filter surface is its own
+      # argument, so there is nothing to translate.
+      qualifier: "{value}"
+  cache: { kind: ttl, seconds: 31536000, negativeTtlSeconds: 31536000 }
+
+# A model call, not a computation. Cached long for the same reason realm-chess caches its plans: a
+# model's answer is not repeatable, and a reading shown beside a chart should keep saying the same
+# thing as the numbers beside it. The reader and the scope are in the KEY, so four astrologers are
+# four cache entries rather than one that keeps being overwritten.
+- name: readings
+  kind: remote
+  operation: readChart
+  keyArg: specs
+  records: "$[*]"
+  args:
+    role: best
+  # Filters nothing: the reader and the scope arrive in the key, and everything else about a
+  # reading is prose the graph must filter itself.
+  pushdown: []
+  # A month for a reading that exists; one minute for one that does not. A reading is the only
+  # thing here that can fail transiently — the model being unreachable — and an hour of
+  # remembering that failure is an hour of a chart that cannot be read.
+  cache: { kind: ttl, seconds: 2592000, negativeTtlSeconds: 60 }

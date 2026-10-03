@@ -1,0 +1,43 @@
+openapi: 3.0.3
+info:
+  title: Open-Meteo geocoding — place names to coordinates and IANA time zone
+  version: "1"
+  description: >
+    Keyless place lookup. The field that matters here is `timezone`: a chart cast in the wrong
+    zone is wrong by a whole rising sign, and the birthplace's zone is not something a person
+    can be expected to know. Data is CC BY 4.0 (Open-Meteo, from GeoNames).
+servers:
+  - url: https://geocoding-api.open-meteo.com/v1
+paths:
+  /search:
+    get:
+      operationId: geocodeSearch
+      summary: Places matching a name, with coordinates, country, region and IANA time zone.
+      parameters:
+        - { name: name, in: query, required: true, schema: { type: string }, description: "Place name, e.g. Melbourne" }
+        - { name: count, in: query, required: false, schema: { type: integer, minimum: 1, maximum: 100 } }
+        - { name: language, in: query, required: false, schema: { type: string } }
+        - { name: format, in: query, required: false, schema: { type: string, enum: [json] } }
+      responses:
+        "200":
+          description: Matching places, most prominent first. A name nobody knows returns no `results` key at all.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  results:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: integer }
+                        name: { type: string }
+                        latitude: { type: number }
+                        longitude: { type: number }
+                        timezone: { type: string, description: "IANA zone, e.g. Australia/Melbourne" }
+                        country: { type: string }
+                        admin1: { type: string }
+                        population: { type: integer }
+                      additionalProperties: true
+                additionalProperties: true

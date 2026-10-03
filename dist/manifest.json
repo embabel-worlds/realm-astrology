@@ -1,0 +1,822 @@
+{
+  "version": 1,
+  "generatedAt": "2026-10-03T06:47:09.217Z",
+  "entries": [
+    {
+      "namespace": "astrology",
+      "name": "aspects",
+      "description": "The chart talking to itself: every pair of points standing at one of the read angles.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "specs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "specs"
+        ]
+      },
+      "outputSchema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "aspectId": {
+              "type": "string"
+            },
+            "spec": {
+              "type": "string"
+            },
+            "from": {
+              "type": "string"
+            },
+            "to": {
+              "type": "string"
+            },
+            "aspect": {
+              "type": "string"
+            },
+            "major": {
+              "type": "boolean"
+            },
+            "orb": {
+              "type": "number"
+            },
+            "orbAllowed": {
+              "type": "number"
+            },
+            "strength": {
+              "type": "number"
+            },
+            "applying": {
+              "oneOf": [
+                {
+                  "type": "undefined"
+                },
+                {
+                  "type": "undefined"
+                }
+              ]
+            },
+            "fromPosition": {
+              "type": "string"
+            },
+            "toPosition": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "aspectId",
+            "spec",
+            "from",
+            "to",
+            "aspect",
+            "major",
+            "orb",
+            "orbAllowed",
+            "strength",
+            "fromPosition",
+            "toPosition"
+          ]
+        }
+      }
+    },
+    {
+      "namespace": "astrology",
+      "name": "birthSpec",
+      "description": "",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "births": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "date": {
+                  "type": "string"
+                },
+                "time": {
+                  "type": "string"
+                },
+                "latitude": {
+                  "type": "number"
+                },
+                "longitude": {
+                  "type": "number"
+                },
+                "timeZone": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "date",
+                "latitude",
+                "longitude",
+                "timeZone"
+              ]
+            }
+          }
+        },
+        "required": [
+          "births"
+        ]
+      },
+      "outputSchema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "spec": {
+              "type": "string"
+            },
+            "date": {
+              "type": "string"
+            },
+            "time": {
+              "type": "string"
+            },
+            "latitude": {
+              "type": "number"
+            },
+            "longitude": {
+              "type": "number"
+            },
+            "timeZone": {
+              "type": "string"
+            },
+            "timeKnown": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "spec",
+            "date",
+            "latitude",
+            "longitude",
+            "timeZone",
+            "timeKnown"
+          ]
+        }
+      }
+    },
+    {
+      "namespace": "astrology",
+      "name": "houseCusps",
+      "description": "The twelve cusps. A chart cast without a birth time has none, and returns nothing.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "specs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "specs"
+        ]
+      },
+      "outputSchema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "cuspId": {
+              "type": "string"
+            },
+            "spec": {
+              "type": "string"
+            },
+            "house": {
+              "type": "number"
+            },
+            "longitude": {
+              "type": "number"
+            },
+            "sign": {
+              "type": "string"
+            },
+            "degreeInSign": {
+              "type": "number"
+            },
+            "position": {
+              "type": "string"
+            },
+            "span": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "cuspId",
+            "spec",
+            "house",
+            "longitude",
+            "sign",
+            "degreeInSign",
+            "position",
+            "span"
+          ]
+        }
+      }
+    },
+    {
+      "namespace": "astrology",
+      "name": "natalChart",
+      "description": "One chart per birth moment: the signs, the angles, and what the chart cannot say.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "specs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "specs"
+        ]
+      },
+      "outputSchema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "spec": {
+              "type": "string"
+            },
+            "utc": {
+              "type": "string"
+            },
+            "timeKnown": {
+              "type": "boolean"
+            },
+            "sunSign": {
+              "type": "string"
+            },
+            "moonSign": {
+              "type": "string"
+            },
+            "risingSign": {
+              "type": "string"
+            },
+            "ascendant": {
+              "type": "string"
+            },
+            "midheaven": {
+              "type": "string"
+            },
+            "ascendantLongitude": {
+              "type": "number"
+            },
+            "midheavenLongitude": {
+              "type": "number"
+            },
+            "houseSystem": {
+              "type": "string"
+            },
+            "moonPhase": {
+              "type": "string"
+            },
+            "moonIlluminated": {
+              "type": "number"
+            },
+            "degradedReason": {
+              "type": "string"
+            },
+            "ascendantUnstable": {
+              "type": "boolean"
+            },
+            "engineAgreementArcmin": {
+              "type": "number"
+            },
+            "crossCheckMaxArcmin": {
+              "type": "number"
+            },
+            "tzAmbiguity": {
+              "type": "string"
+            },
+            "moonUncertaintyDegrees": {
+              "type": "number"
+            },
+            "moonSignAmbiguous": {
+              "type": "boolean"
+            },
+            "unavailable": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "spec",
+            "utc",
+            "timeKnown",
+            "sunSign",
+            "moonSign",
+            "moonPhase",
+            "moonIlluminated",
+            "ascendantUnstable",
+            "moonSignAmbiguous",
+            "unavailable"
+          ]
+        }
+      }
+    },
+    {
+      "namespace": "astrology",
+      "name": "placements",
+      "description": "Every body in every chart: sign, degree, house and whether it was retrograde.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "specs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "specs"
+        ]
+      },
+      "outputSchema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "placementId": {
+              "type": "string"
+            },
+            "spec": {
+              "type": "string"
+            },
+            "body": {
+              "type": "string"
+            },
+            "longitude": {
+              "type": "number"
+            },
+            "latitude": {
+              "type": "number"
+            },
+            "sign": {
+              "type": "string"
+            },
+            "degreeInSign": {
+              "type": "number"
+            },
+            "position": {
+              "type": "string"
+            },
+            "house": {
+              "type": "number"
+            },
+            "retrograde": {
+              "type": "boolean"
+            },
+            "dailyMotion": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "placementId",
+            "spec",
+            "body",
+            "longitude",
+            "latitude",
+            "sign",
+            "degreeInSign",
+            "position",
+            "retrograde",
+            "dailyMotion"
+          ]
+        }
+      }
+    },
+    {
+      "namespace": "astrology",
+      "name": "readChart",
+      "description": "",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "specs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "role": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "specs"
+        ]
+      },
+      "outputSchema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "readingId": {
+              "type": "string"
+            },
+            "spec": {
+              "type": "string"
+            },
+            "chartSpec": {
+              "type": "string"
+            },
+            "astrologer": {
+              "type": "string"
+            },
+            "astrologerName": {
+              "type": "string"
+            },
+            "tagline": {
+              "type": "string"
+            },
+            "scope": {
+              "type": "string"
+            },
+            "reading": {
+              "type": "string"
+            },
+            "caveats": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "sunSign": {
+              "type": "string"
+            },
+            "moonSign": {
+              "type": "string"
+            },
+            "risingSign": {
+              "type": "string"
+            },
+            "role": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "readingId",
+            "spec",
+            "chartSpec",
+            "astrologer",
+            "astrologerName",
+            "tagline",
+            "scope",
+            "reading",
+            "caveats",
+            "sunSign",
+            "moonSign"
+          ]
+        }
+      }
+    },
+    {
+      "namespace": "astrology",
+      "name": "resolveBirthplace",
+      "description": "",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "names": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "count": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "names"
+        ]
+      },
+      "outputSchema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "placeId": {
+              "type": "string"
+            },
+            "nameQueried": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "country": {
+              "type": "string"
+            },
+            "region": {
+              "type": "string"
+            },
+            "latitude": {
+              "type": "number"
+            },
+            "longitude": {
+              "type": "number"
+            },
+            "timeZone": {
+              "type": "string"
+            },
+            "population": {
+              "type": "number"
+            },
+            "specFragment": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "placeId",
+            "nameQueried",
+            "name",
+            "latitude",
+            "longitude",
+            "timeZone",
+            "specFragment"
+          ]
+        }
+      }
+    },
+    {
+      "namespace": "astrology",
+      "name": "skyAt",
+      "description": "",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "instants": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "instants"
+        ]
+      },
+      "outputSchema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "positionId": {
+              "type": "string"
+            },
+            "instant": {
+              "type": "string"
+            },
+            "body": {
+              "type": "string"
+            },
+            "longitude": {
+              "type": "number"
+            },
+            "sign": {
+              "type": "string"
+            },
+            "degreeInSign": {
+              "type": "number"
+            },
+            "position": {
+              "type": "string"
+            },
+            "retrograde": {
+              "type": "boolean"
+            },
+            "dailyMotion": {
+              "type": "number"
+            },
+            "moonPhase": {
+              "type": "string"
+            },
+            "moonIlluminated": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "positionId",
+            "instant",
+            "body",
+            "longitude",
+            "sign",
+            "degreeInSign",
+            "position",
+            "retrograde",
+            "dailyMotion",
+            "moonPhase",
+            "moonIlluminated"
+          ]
+        }
+      }
+    },
+    {
+      "namespace": "astrology",
+      "name": "transits",
+      "description": "",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "specs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "specs"
+        ]
+      },
+      "outputSchema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "transitId": {
+              "type": "string"
+            },
+            "spec": {
+              "type": "string"
+            },
+            "chartSpec": {
+              "type": "string"
+            },
+            "on": {
+              "type": "string"
+            },
+            "transiting": {
+              "type": "string"
+            },
+            "natal": {
+              "type": "string"
+            },
+            "aspect": {
+              "type": "string"
+            },
+            "major": {
+              "type": "boolean"
+            },
+            "orb": {
+              "type": "number"
+            },
+            "strength": {
+              "type": "number"
+            },
+            "applying": {
+              "oneOf": [
+                {
+                  "type": "undefined"
+                },
+                {
+                  "type": "undefined"
+                }
+              ]
+            },
+            "transitingPosition": {
+              "type": "string"
+            },
+            "transitingRetrograde": {
+              "type": "boolean"
+            },
+            "natalPosition": {
+              "type": "string"
+            },
+            "throughHouse": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "transitId",
+            "spec",
+            "chartSpec",
+            "on",
+            "transiting",
+            "natal",
+            "aspect",
+            "major",
+            "orb",
+            "strength",
+            "transitingPosition",
+            "transitingRetrograde",
+            "natalPosition"
+          ]
+        }
+      }
+    },
+    {
+      "namespace": "astrology",
+      "name": "verifyAgainstNasa",
+      "description": "",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "specs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "bodies": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            ]
+          }
+        },
+        "required": [
+          "specs"
+        ]
+      },
+      "outputSchema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "checkId": {
+              "type": "string"
+            },
+            "spec": {
+              "type": "string"
+            },
+            "body": {
+              "type": "string"
+            },
+            "utc": {
+              "type": "string"
+            },
+            "ourLongitude": {
+              "type": "number"
+            },
+            "nasaLongitude": {
+              "type": "number"
+            },
+            "agreementArcsec": {
+              "type": "number"
+            },
+            "agrees": {
+              "oneOf": [
+                {
+                  "type": "undefined"
+                },
+                {
+                  "type": "undefined"
+                }
+              ]
+            },
+            "sign": {
+              "type": "string"
+            },
+            "sameSign": {
+              "oneOf": [
+                {
+                  "type": "undefined"
+                },
+                {
+                  "type": "undefined"
+                }
+              ]
+            },
+            "note": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "checkId",
+            "spec",
+            "body",
+            "utc",
+            "ourLongitude",
+            "sign"
+          ]
+        }
+      }
+    }
+  ]
+}

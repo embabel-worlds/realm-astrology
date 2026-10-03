@@ -1,0 +1,664 @@
+import type { GenericGatewayContext } from "@embabel/runtime-types";
+import { chartOf, houseOf, type Chart } from "../lib/chart.js";
+import { arcseconds, horizonsArgs, HORIZONS_ID, parseHorizons } from "../lib/horizons.js";
+import { moonState, skyAt as sky, BODIES } from "../lib/sky.js";
+import { natalAspects, transitsOf } from "../lib/transits.js";
+import { ASTROLOGERS, BY_SLUG } from "../lib/astrologers.js";
+import { degreeInSign, parseMoment, parseReadingKey, parseTransitDay, position, signOf } from "../lib/spec.js";
+
+/*
+ * The realm's verbs. Six compute — a chart, its placements, its aspects, its houses, the sky at
+ * an instant, and the sky read against a chart — and two reach out: one resolves a birthplace to
+ * the coordinates and zone a chart needs, one asks NASA whether the computed positions are right.
+ *
+ * Every verb is also a producer, so each is one Virtual Cypher hop from a pinned key. Each takes
+ * a list and returns a flat list of records, every record carrying the key it was computed for:
+ * that is what lets one query ask for forty charts and get them in one call.
+ *
+ * Nothing here interprets anything. A sign is where a body is, not what it means. The meaning is
+ * `readChart`, which asks a model with the astrology skill attached, and which is deliberately a
+ * separate verb with a separate cache: a position is a fact and a reading is a judgement, and the
+ * two should never be mistaken for one another in the graph.
+ */
+
+/** Charts are cast once per key; a key with a bad shape is refused rather than guessed at. */
+const chartsFor = (specs: string[] | undefined): Chart[] =>
+  (specs ?? []).map((s) => chartOf(parseMoment(s)));
+
+export interface NatalChartRecord {
+  spec: string;
+  utc: string;
+  timeKnown: boolean;
+  sunSign: string;
+  moonSign: string;
+  risingSign: string | null;
+  ascendant: string | null;
+  midheaven: string | null;
+  ascendantLongitude: number | null;
+  midheavenLongitude: number | null;
+  houseSystem: string | null;
+  moonPhase: string;
+  moonIlluminated: number;
+  /** Non-null when Placidus was abandoned for the latitude. Belongs in front of the reader. */
+  degradedReason: string | null;
+  ascendantUnstable: boolean;
+  /** How far this realm's two ephemerides disagreed, arcminutes. Its own accuracy, as data. */
+  engineAgreementArcmin: number | null;
+  crossCheckMaxArcmin: number | null;
+  /** A defensible alternative zone for these coordinates, where one exists. */
+  tzAmbiguity: string | null;
+  moonUncertaintyDegrees: number | null;
+  moonSignAmbiguous: boolean;
+  /** What this chart cannot say, and why: empty when the birth time is known. */
+  unavailable: string[];
+}
+
+/** One chart per birth moment: the signs, the angles, and what the chart cannot say. */
+export async function natalChart(
+  _ctx: GenericGatewayContext,
+  args: { specs: string[] },
+): Promise<NatalChartRecord[]> {
+  return chartsFor(args.specs).map((c) => ({
+    spec: c.spec,
+    utc: c.utc.toISOString(),
+    timeKnown: c.timeKnown,
+    sunSign: signOf(c.placements.find((p) => p.body === "Sun")!.longitude),
+    moonSign: signOf(c.placements.find((p) => p.body === "Moon")!.longitude),
+    risingSign: c.ascendant === null ? null : signOf(c.ascendant),
+    ascendant: c.ascendant === null ? null : position(c.ascendant),
+    midheaven: c.midheaven === null ? null : position(c.midheaven),
+    ascendantLongitude: c.ascendant,
+    midheavenLongitude: c.midheaven,
+    houseSystem: c.houseSystem,
+    moonPhase: c.moon.phase,
+    moonIlluminated: Number(c.moon.illuminated.toFixed(4)),
+    degradedReason: c.degradedReason,
+    ascendantUnstable: c.ascendantUnstable,
+    engineAgreementArcmin: c.engineAgreementArcmin,
+    crossCheckMaxArcmin: c.crossCheckMaxArcmin,
+    tzAmbiguity: c.tzAmbiguity,
+    moonUncertaintyDegrees: c.moonUncertaintyDegrees,
+    moonSignAmbiguous: c.moonSignAmbiguous,
+    unavailable: c.unavailable.map((u) => `${u.field}: ${u.reason}`),
+  }));
+}
+
+export interface PlacementRecord {
+  placementId: string;
+  spec: string;
+  body: string;
+  longitude: number;
+  latitude: number;
+  sign: string;
+  degreeInSign: number;
+  position: string;
+  house: number | null;
+  retrograde: boolean;
+  dailyMotion: number;
+}
+
+/** Every body in every chart: sign, degree, house and whether it was retrograde. */
+export async function placements(
+  _ctx: GenericGatewayContext,
+  args: { specs: string[] },
+): Promise<PlacementRecord[]> {
+  return chartsFor(args.specs).flatMap((c) =>
+    c.placements.map((p) => ({
+      placementId: `${c.spec}|${p.body}`,
+      spec: c.spec,
+      body: p.body,
+      longitude: Number(p.longitude.toFixed(6)),
+      latitude: Number(p.latitude.toFixed(6)),
+      sign: p.sign,
+      degreeInSign: Number(p.degreeInSign.toFixed(4)),
+      position: p.position,
+      house: p.house,
+      retrograde: p.retrograde,
+      dailyMotion: Number(p.dailyMotion.toFixed(5)),
+    })),
+  );
+}
+
+export interface AspectRecord {
+  aspectId: string;
+  spec: string;
+  from: string;
+  to: string;
+  aspect: string;
+  major: boolean;
+  orb: number;
+  orbAllowed: number;
+  strength: number;
+  applying: boolean | null;
+  fromPosition: string;
+  toPosition: string;
+}
+
+/** The chart talking to itself: every pair of points standing at one of the read angles. */
+export async function aspects(
+  _ctx: GenericGatewayContext,
+  args: { specs: string[] },
+): Promise<AspectRecord[]> {
+  return chartsFor(args.specs).flatMap((c) =>
+    natalAspects(c).map((a) => ({
+      aspectId: `${c.spec}|${a.transiting}-${a.aspect}-${a.natal}`,
+      spec: c.spec,
+      from: a.transiting,
+      to: a.natal,
+      aspect: a.aspect,
+      major: a.major,
+      orb: a.orb,
+      orbAllowed: a.orbAllowed,
+      strength: a.strength,
+      applying: a.applying,
+      fromPosition: a.transitingPosition,
+      toPosition: a.natalPosition,
+    })),
+  );
+}
+
+export interface HouseCuspRecord {
+  cuspId: string;
+  spec: string;
+  house: number;
+  longitude: number;
+  sign: string;
+  degreeInSign: number;
+  position: string;
+  /** Degrees of ecliptic the house spans. Placidus houses are unequal; some are very wide. */
+  span: number;
+}
+
+/** The twelve cusps. A chart cast without a birth time has none, and returns nothing. */
+export async function houseCusps(
+  _ctx: GenericGatewayContext,
+  args: { specs: string[] },
+): Promise<HouseCuspRecord[]> {
+  const out: HouseCuspRecord[] = [];
+  for (const c of chartsFor(args.specs)) {
+    for (let i = 0; i < c.cusps.length; i++) {
+      const lon = c.cusps[i] as number;
+      const next = c.cusps[(i + 1) % 12] as number;
+      out.push({
+        cuspId: `${c.spec}|${i + 1}`,
+        spec: c.spec,
+        house: i + 1,
+        longitude: Number(lon.toFixed(6)),
+        sign: signOf(lon),
+        degreeInSign: Number(degreeInSign(lon).toFixed(4)),
+        position: position(lon),
+        span: Number((((next - lon) % 360 + 360) % 360).toFixed(4)),
+      });
+    }
+  }
+  return out;
+}
+
+export interface TransitRecord {
+  transitId: string;
+  spec: string;
+  /** The birth moment, without the day — so a transit row can be joined back to its chart. */
+  chartSpec: string;
+  on: string;
+  transiting: string;
+  natal: string;
+  aspect: string;
+  major: boolean;
+  orb: number;
+  strength: number;
+  applying: boolean | null;
+  transitingPosition: string;
+  transitingRetrograde: boolean;
+  natalPosition: string;
+  throughHouse: number | null;
+}
+
+/*
+ * The sky on a day, read against a chart. The instant is noon UTC of that day: a transit is read
+ * as a condition of the day, not of a minute, and noon is the convention that minimises how far
+ * the Moon — the only fast-moving body — can be from its daily mean.
+ */
+export async function transits(
+  _ctx: GenericGatewayContext,
+  args: { specs: string[] },
+): Promise<TransitRecord[]> {
+  const out: TransitRecord[] = [];
+  for (const raw of args.specs ?? []) {
+    const day = parseTransitDay(raw);
+    const chart = chartOf(day.moment);
+    const at = new Date(`${day.on}T12:00:00Z`);
+    for (const t of transitsOf(chart, at, (lon) => houseOf(lon, chart.cusps))) {
+      out.push({
+        transitId: `${day.spec}|${t.transiting}-${t.aspect}-${t.natal}`,
+        spec: day.spec,
+        chartSpec: day.moment.spec,
+        on: day.on,
+        transiting: t.transiting,
+        natal: t.natal,
+        aspect: t.aspect,
+        major: t.major,
+        orb: t.orb,
+        strength: t.strength,
+        applying: t.applying,
+        transitingPosition: t.transitingPosition,
+        transitingRetrograde: t.transitingRetrograde,
+        natalPosition: t.natalPosition,
+        throughHouse: t.throughHouse,
+      });
+    }
+  }
+  return out;
+}
+
+export interface SkyPositionRecord {
+  positionId: string;
+  instant: string;
+  body: string;
+  longitude: number;
+  sign: string;
+  degreeInSign: number;
+  position: string;
+  retrograde: boolean;
+  dailyMotion: number;
+  moonPhase: string;
+  moonIlluminated: number;
+}
+
+/*
+ * The sky at an instant, with no chart involved. This is the hop that joins astrology to
+ * everything else the world holds: anything with a timestamp — a commit, a workflow run, an
+ * invoice, a conversation — has a sky over it, and this verb is how that sky is fetched.
+ */
+export async function skyAt(
+  _ctx: GenericGatewayContext,
+  args: { instants: string[] },
+): Promise<SkyPositionRecord[]> {
+  const out: SkyPositionRecord[] = [];
+  for (const raw of args.instants ?? []) {
+    const instant = raw.trim();
+    const at = new Date(instant);
+    if (Number.isNaN(at.getTime())) throw new Error(`Not an instant: ${instant}. Expected ISO 8601, e.g. 2026-10-02T21:00:00Z.`);
+    const moon = moonState(at);
+    for (const b of sky(at)) {
+      out.push({
+        positionId: `${instant}|${b.body}`,
+        instant,
+        body: b.body,
+        longitude: Number(b.longitude.toFixed(6)),
+        sign: signOf(b.longitude),
+        degreeInSign: Number(degreeInSign(b.longitude).toFixed(4)),
+        position: position(b.longitude),
+        retrograde: b.retrograde,
+        dailyMotion: Number(b.dailyMotion.toFixed(5)),
+        moonPhase: moon.phase,
+        moonIlluminated: Number(moon.illuminated.toFixed(4)),
+      });
+    }
+  }
+  return out;
+}
+
+/* ── The two verbs that leave the process ──────────────────────────────────────────────────── */
+
+/* The gateway camelCases the name declared in apis.yml: `open_meteo_geocoding` is reached here as
+ * `openMeteoGeocoding`. Getting it wrong is silent — an undefined namespace, no rows, no warning. */
+interface GeocodingGateway {
+  openMeteoGeocoding: {
+    geocodeSearch(a: { name: string; count?: number; language?: string; format?: string }): Promise<{
+      results?: { id?: number; name: string; latitude: number; longitude: number; timezone: string; country?: string; admin1?: string; population?: number }[];
+    }>;
+  };
+}
+
+export interface BirthplaceRecord {
+  placeId: string;
+  /** The name as asked for — the key this record answers. */
+  nameQueried: string;
+  name: string;
+  country: string | null;
+  region: string | null;
+  latitude: number;
+  longitude: number;
+  timeZone: string;
+  population: number | null;
+  /** The key to cast a chart with, once a birth date and time are added in front of it. */
+  specFragment: string;
+}
+
+/*
+ * A place name to the coordinates and zone a chart needs. Open-Meteo's geocoder is keyless and,
+ * crucially, returns the IANA zone — which is the field that actually decides a rising sign, and
+ * the one a user cannot be expected to know.
+ *
+ * It returns SEVERAL places for a name, and that is kept: there are three Melbournes, and picking
+ * the biggest silently would cast the wrong chart for anyone born in Arkansas. The caller chooses.
+ */
+export async function resolveBirthplace(
+  ctx: GenericGatewayContext,
+  args: { names: string[]; count?: number },
+): Promise<BirthplaceRecord[]> {
+  const api = (ctx as unknown as GeocodingGateway).openMeteoGeocoding;
+  const count = Math.min(Math.max(args.count ?? 5, 1), 20);
+  const out: BirthplaceRecord[] = [];
+  for (const raw of args.names ?? []) {
+    const nameQueried = raw.trim();
+    if (!nameQueried) continue;
+    const res = await api.geocodeSearch({ name: nameQueried, count, language: "en", format: "json" });
+    for (const r of res.results ?? []) {
+      out.push({
+        placeId: `${nameQueried}|${r.latitude},${r.longitude}`,
+        nameQueried,
+        name: r.name,
+        country: r.country ?? null,
+        region: r.admin1 ?? null,
+        latitude: r.latitude,
+        longitude: r.longitude,
+        timeZone: r.timezone,
+        population: r.population ?? null,
+        specFragment: `${r.latitude},${r.longitude}|${r.timezone}`,
+      });
+    }
+  }
+  return out;
+}
+
+interface HorizonsGateway {
+  nasaHorizons: {
+    horizonsLookup(a: Record<string, string>): Promise<{ result?: string }>;
+  };
+}
+
+export interface NasaCheckRecord {
+  checkId: string;
+  spec: string;
+  body: string;
+  /** The instant checked — the chart's UTC moment, to the second. */
+  utc: string;
+  ourLongitude: number;
+  nasaLongitude: number | null;
+  /** How far apart, in arcseconds. Null when NASA could not be reached or gave no row. */
+  agreementArcsec: number | null;
+  /** Did the two agree inside the stated tolerance? Null means the check could not be made. */
+  agrees: boolean | null;
+  sign: string;
+  /** The same sign either way? A disagreement that crosses a sign boundary is the one that matters. */
+  sameSign: boolean | null;
+  note: string | null;
+}
+
+/*
+ * The audit. For each body in a chart, ask NASA JPL Horizons where it was and report the
+ * difference, in arcseconds, as data.
+ *
+ * One request per body, because Horizons answers one body at a time and is paced by its
+ * publisher: ten requests per chart, cached hard afterwards. This is not how charts are cast —
+ * it is how a reader satisfies themselves that they were cast correctly, which no other
+ * astrology surface will let them do at all.
+ *
+ * A tolerance is stated rather than implied: one arcminute, which is astronomy-engine's own
+ * stated accuracy and far finer than any astrological distinction. A check that could not be
+ * made says so and claims nothing — an unreachable NASA is not a pass.
+ */
+const TOLERANCE_ARCSEC = 60;
+
+export async function verifyAgainstNasa(
+  ctx: GenericGatewayContext,
+  args: { specs: string[]; bodies?: string[] | string },
+): Promise<NasaCheckRecord[]> {
+  const api = (ctx as unknown as HorizonsGateway).nasaHorizons;
+  /*
+   * `bodies` arrives through the producer's pushdown — `WHERE c.body = 'Mars'` rendered into the
+   * `{filters}` slot — so it may be a list, a bare string, or the unrendered placeholder itself
+   * when nothing was pushed. Anything that is not a body this realm knows is dropped, which makes
+   * the placeholder case mean "check all ten" without a special case for its spelling.
+   */
+  const asked = Array.isArray(args.bodies) ? args.bodies : typeof args.bodies === "string" ? [args.bodies] : [];
+  const wanted = asked.filter((b) => b in HORIZONS_ID);
+  const bodies = wanted.length ? wanted : [...BODIES];
+  const out: NasaCheckRecord[] = [];
+  for (const chart of chartsFor(args.specs)) {
+    for (const body of bodies) {
+      const ours = chart.placements.find((p) => p.body === body);
+      if (!ours) continue;
+      /*
+       * A transport failure THROWS rather than returning a row. The difference matters because
+       * these rows are cached: a row saying "could not reach NASA" would be cached as though it
+       * were a finding, and an outage would turn into a permanent unaudited chart. An error is
+       * loud, uncached, and retried.
+       *
+       * Horizons answering with no ephemeris row IS a finding — the instant is outside its span —
+       * so that comes back as a row, with `agrees: null` and the reason.
+       */
+      const res = await api.horizonsLookup(horizonsArgs(body, chart.utc) as unknown as Record<string, string>);
+      const row = res.result ? parseHorizons(res.result) : null;
+      const nasaLongitude: number | null = row ? row.longitude : null;
+      const note: string | null = row ? null : "Horizons returned no ephemeris row for this instant.";
+      const off = nasaLongitude === null ? null : arcseconds(((ours.longitude - nasaLongitude + 540) % 360) - 180);
+      out.push({
+        checkId: `${chart.spec}|${body}`,
+        spec: chart.spec,
+        body,
+        utc: chart.utc.toISOString(),
+        ourLongitude: Number(ours.longitude.toFixed(6)),
+        nasaLongitude: nasaLongitude === null ? null : Number(nasaLongitude.toFixed(6)),
+        agreementArcsec: off === null ? null : Number(off.toFixed(2)),
+        agrees: off === null ? null : off <= TOLERANCE_ARCSEC,
+        sign: ours.sign,
+        sameSign: nasaLongitude === null ? null : signOf(nasaLongitude) === ours.sign,
+        note,
+      });
+    }
+  }
+  return out;
+}
+
+export interface BirthSpecRecord {
+  spec: string;
+  date: string;
+  time: string | null;
+  latitude: number;
+  longitude: number;
+  timeZone: string;
+  timeKnown: boolean;
+}
+
+/*
+ * Assemble a birth key from its parts, and refuse the ones that are not keys.
+ *
+ * It exists so that nothing downstream — an app, a chat turn, a stored BirthRecord — ever builds
+ * the string by concatenation. The key carries the birthplace zone, and a key assembled by hand
+ * is the one place a reader's zone could quietly be substituted for the birthplace's.
+ */
+export async function birthSpec(
+  _ctx: GenericGatewayContext,
+  args: { births: { date: string; time?: string | null; latitude: number; longitude: number; timeZone: string }[] },
+): Promise<BirthSpecRecord[]> {
+  return (args.births ?? []).map((b) => {
+    const when = b.time ? `${b.date}T${b.time}` : b.date;
+    const m = parseMoment(`${when}|${b.latitude},${b.longitude}|${b.timeZone}`);
+    return {
+      spec: m.spec,
+      date: m.date,
+      time: m.time,
+      latitude: m.latitude,
+      longitude: m.longitude,
+      timeZone: m.timeZone,
+      timeKnown: m.time !== null,
+    };
+  });
+}
+
+/* ── The reading: a judgement, not a fact ──────────────────────────────────────────────────── */
+
+interface AiGateway {
+  ai: { complete(a: { prompt: string; role?: string; skills?: string[] }): Promise<unknown> };
+}
+
+export interface ReadingRecord {
+  readingId: string;
+  spec: string;
+  chartSpec: string;
+  astrologer: string;
+  astrologerName: string;
+  tagline: string;
+  scope: string;
+  /** The reading itself, as markdown. */
+  reading: string;
+  /** What the chart could not say, carried onto the reading so it cannot be read without them. */
+  caveats: string[];
+  sunSign: string;
+  moonSign: string;
+  risingSign: string | null;
+  /** Which model role produced it. A reading is not reproducible; this says who to ask about it. */
+  role: string | null;
+}
+
+/*
+ * One reading of one chart by one astrologer.
+ *
+ * The facts are computed first and handed to the model as a table; the model's job is the
+ * interpretation and nothing else, with the `astrology-reading` skill carrying the craft — the
+ * order the tradition reads in, the dignities, what the honesty fields mean, and what a reading
+ * must never claim. That split is deliberate and it is the same one realm-chess makes: the engine
+ * finds the moves, the model with the skill says what they are for.
+ *
+ * The caveats are not left to the model's discretion. They are computed from the chart and attached
+ * to the record, so a reading of a chart with no birth time carries "no ascendant" as DATA even if
+ * the prose forgets. A view can filter on them; a page can print them beside the reading.
+ *
+ * `role` resolves the model through the world's LLM roles. No model is named here: which model
+ * plays a role is the world's decision, not this realm's.
+ */
+export async function readChart(
+  ctx: GenericGatewayContext,
+  args: { specs: string[]; role?: string },
+): Promise<ReadingRecord[]> {
+  const ai = (ctx as unknown as AiGateway).ai;
+  const out: ReadingRecord[] = [];
+  for (const raw of args.specs ?? []) {
+    const key = parseReadingKey(raw);
+    const who = BY_SLUG[key.astrologer];
+    if (!who) {
+      throw new Error(
+        `No astrologer called '${key.astrologer}'. This realm ships: ${ASTROLOGERS.map((a) => a.slug).join(", ")}.`,
+      );
+    }
+    const chart = chartOf(key.moment);
+    const caveats = caveatsOf(chart);
+    const at = key.on === null ? null : new Date(`${key.on}T12:00:00Z`);
+    const moving = at === null ? [] : transitsOf(chart, at, (lon) => houseOf(lon, chart.cusps));
+    const prompt = readingPrompt(who, chart, caveats, key, moving);
+    const answer = await ai.complete({
+      prompt,
+      skills: ["astrology-reading"],
+      ...(args.role ? { role: args.role } : {}),
+    });
+    const reading = (typeof answer === "string" ? answer : JSON.stringify(answer)).trim();
+    out.push({
+      readingId: key.spec,
+      spec: key.spec,
+      chartSpec: key.moment.spec,
+      astrologer: who.slug,
+      astrologerName: who.name,
+      tagline: who.tagline,
+      scope: key.scope,
+      reading,
+      caveats,
+      sunSign: signOf(chart.placements.find((p) => p.body === "Sun")!.longitude),
+      moonSign: signOf(chart.placements.find((p) => p.body === "Moon")!.longitude),
+      risingSign: chart.ascendant === null ? null : signOf(chart.ascendant),
+      role: args.role ?? null,
+    });
+  }
+  return out;
+}
+
+/*
+ * The caveats, computed rather than asked for. Each one changes what a reading is entitled to say,
+ * so each is stated in those terms rather than as a technical note.
+ */
+function caveatsOf(chart: Chart): string[] {
+  const out: string[] = [];
+  if (!chart.timeKnown) {
+    out.push("The birth time is not known, so this chart has no ascendant and no houses. Any reading of a rising sign or a house placement would be invented.");
+  }
+  if (chart.moonSignAmbiguous) {
+    out.push(`The Moon moved ${chart.moonUncertaintyDegrees?.toFixed(1)}° across the birth day and crossed a sign, so its sign depends on the hour of birth.`);
+  }
+  if (chart.degradedReason) {
+    out.push(`Placidus houses failed at this latitude, so whole-sign houses were used instead: ${chart.degradedReason}`);
+  }
+  if (chart.ascendantUnstable) {
+    out.push("This is a polar birth: the ascendant is mathematically unstable here, and another tool may legitimately differ by 180° without either being wrong.");
+  }
+  if (chart.tzAmbiguity) {
+    out.push(chart.tzAmbiguity);
+  }
+  return out;
+}
+
+function readingPrompt(
+  who: { name: string; brief: string },
+  chart: Chart,
+  caveats: string[],
+  key: { scope: string; on: string | null },
+  moving: ReturnType<typeof transitsOf>,
+): string {
+  const placements = chart.placements
+    .map((p) => `  ${p.body.padEnd(8)} ${p.position.padEnd(18)} ${p.house === null ? "no house" : `house ${p.house}`}${p.retrograde ? "  retrograde" : ""}`)
+    .join("\n");
+  const aspectRows = natalAspects(chart)
+    .filter((a) => a.major)
+    .slice(0, 12)
+    .map((a) => `  ${a.transiting} ${a.aspect} ${a.natal}, orb ${a.orb.toFixed(2)}°${a.applying === true ? ", applying" : a.applying === false ? ", separating" : ""}`)
+    .join("\n");
+  const sun = chart.placements.find((p) => p.body === "Sun")!;
+  const sect = chart.timeKnown && sun.house !== null
+    ? sun.house >= 7 && sun.house <= 12 ? "DAY chart (the Sun is above the horizon)" : "NIGHT chart (the Sun is below the horizon)"
+    : "sect cannot be determined without a birth time";
+
+  const transitBlock = key.on === null
+    ? ""
+    : `\nThe sky on ${key.on}, against this chart (tightest orb first, majors only):\n${
+        moving.filter((t) => t.major).slice(0, 12)
+          .map((t) => `  transiting ${t.transiting}${t.transitingRetrograde ? " (retrograde)" : ""} ${t.aspect} natal ${t.natal}, orb ${t.orb.toFixed(2)}°${t.applying === true ? ", applying" : t.applying === false ? ", separating" : ""}${t.throughHouse ? `, crossing house ${t.throughHouse}` : ""}`)
+          .join("\n") || "  nothing within orb"
+      }\n`;
+
+  return `${who.brief}
+
+Read the chart below. It has already been computed, so do not recompute anything and do not
+introduce a placement that is not here.
+
+On accuracy, state only what this prompt gives you. The realm's two independent ephemerides
+disagree here by ${chart.engineAgreementArcmin ?? "an unreported amount"} arcminutes at worst. A
+live audit against NASA JPL Horizons is available in this world as the VERIFIED_BY hop, but it HAS
+NOT been run for this chart, so you do not have a NASA figure and must not quote one. Saying "to
+within a tenth of an arcsecond" when nobody measured it is exactly the failure this realm exists to
+avoid.
+
+Chart cast for ${chart.utc.toISOString()} UTC. House system: ${chart.houseSystem ?? "none, no birth time"}.
+This is a ${sect}.
+
+Placements:
+${placements}
+
+${chart.ascendant === null ? "No ascendant or midheaven: the birth time is unknown." : `Ascendant ${position(chart.ascendant)}; Midheaven ${position(chart.midheaven as number)}.`}
+Moon phase: ${chart.moon.phase}, ${(chart.moon.illuminated * 100).toFixed(0)}% lit.
+
+Major aspects:
+${aspectRows || "  none within orb"}
+${transitBlock}${
+    caveats.length
+      ? `\nThese limits are part of the chart and you must state the relevant ones before interpreting:\n${caveats.map((c) => `  - ${c}`).join("\n")}\n`
+      : ""
+  }
+${key.on === null
+      ? "Write a natal reading."
+      : `Write a reading of ${key.on} for this person: what the sky is doing to their chart on that day.`}
+
+Write prose in your own voice, as markdown. No preamble about what you are about to do, no
+restatement of these instructions. Lead with the chart: Sun, Moon and rising in one line. Rank by
+orb and give the degree the first time you name a placement. Report what the tradition holds; do
+not claim the chart causes or predicts anything.`;
+}

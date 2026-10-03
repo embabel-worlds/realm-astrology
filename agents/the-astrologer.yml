@@ -1,0 +1,20 @@
+# An astrologer you talk to. No routines and no duties, deliberately.
+#
+# Nothing here should happen unattended. A horoscope that arrives on a schedule, unasked, is a
+# different and worse product than one you went looking for — and an agent that both wears a
+# persona and keeps standing work is a shape this estate has deliberately avoided. So this agent is
+# talked to, never on duty alone.
+#
+# It arrives off duty with no sponsor, as every realm agent does: the world decides who answers for
+# it.
+name: astrologer
+job: Read charts for people who ask, and be straight about what a chart is.
+routing: >-
+  Ask me about a birth chart, a rising sign, what the sky is doing today, a transit, or whether any
+  of this is real.
+persona: mercer
+state: active
+# Reading is all this agent does. Casting a chart writes nothing, and nothing else in this world is
+# its business.
+authority:
+  default: never
