@@ -106,6 +106,24 @@ Mercury is retrograde about a fifth of all time. If a fifth of your failed build
 under it, nothing happened — and the view says so rather than leaving a reader to be
 impressed by the numerator. A joke with a correct denominator is the only kind worth telling.
 
+## The Wheel
+
+`apps/the-wheel.html`, served at `/apps/astrology/the-wheel.html`: the chart drawn as an SVG wheel
+with the house spokes, the aspect lines and every body on its own degree, beside the placements, the
+aspects, the cusps, today's transits and the NASA audit. Each panel is one saved view; today's date
+is computed in the page, never baked in.
+
+It also carries the conversation. Pick a reader and ask — each of the four keeps their own thread,
+and every answer is grounded in the chart on screen. That goes through the realm's own
+`askAstrologer` verb rather than the host's chat helper, deliberately: the host session is per-user
+and broadcast to every surface you have open, so it can wear one persona at a time, and four readers
+disagreeing needs four threads that leave your assistant conversation alone. Being a verb also means
+the conversation is a REST call and a `code_mode` one-liner, not an app feature.
+
+The page explains itself behind a footer link — the data model, the view behind each panel, what each
+honesty chip means, what an empty panel means, and what the appliance did there that a conventional
+stack could not.
+
 ## How it is built
 
 | | |
@@ -134,7 +152,14 @@ commercial grant, which is not a thing to put in a public realm.
   because in 1879 that zone is Berlin's own local mean time and the birthplace was 6.5
   minutes of longitude away.
 
-27 tests, including 30 live NASA comparisons.
+31 tests, including 30 live NASA comparisons — and because JPL is paced, the battery serialises its
+requests and reports a refusal AS a refusal: an earlier version passed each chart alone and failed
+two of three together, reporting a rate limit as a position disagreement.
+
+The app ships its own harness, `tests/app.spec.mjs` — 16 Playwright tests driving the real page with
+the runtime stubbed from captured live envelopes. It is not optional decoration: it caught the wheel
+drawing every body at `NaN`, because the views returned a readable `26°09' Taurus` but no numeric
+longitude. Every row count still matched, so curl saw a working app and a browser saw an empty circle.
 
 ## What it does not do yet
 
@@ -143,7 +168,6 @@ commercial grant, which is not a thing to put in a public realm.
 - **The CI-join views are written against realm-github-actions' declared contract but have
   not been reconciled against a real run history** — GitHub was unreachable from the
   appliance when they were authored. Run them before trusting a figure.
-- **No chart wheel.** The data is all there; nothing draws it yet.
 
 ## Install
 
