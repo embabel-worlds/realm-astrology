@@ -15,7 +15,7 @@
  * realm that quietly picked one and said nothing would be hiding the single most useful fact
  * about its own accuracy.
  */
-import { calculateNatalChart, calculateWithoutTime, type NatalChart as DeepChart } from "deepnatal";
+import { calculateNatalChart, calculateWithoutTime, localToUtc, type NatalChart as DeepChart } from "deepnatal";
 import { norm360, position, signOf, degreeInSign, titleCase, type Moment } from "./spec.js";
 import { BODIES, dailyMotion, latitudeOf, longitudeOf, moonState, type BodyName, type MoonState } from "./sky.js";
 
@@ -74,7 +74,7 @@ export function chartOf(moment: Moment): Chart {
   };
 
   if (moment.time === null) {
-    const partial = run(() => calculateWithoutTime(birth), moment.spec);
+    const partial = cast(() => calculateWithoutTime(birth), moment);
     const utc = new Date(partial.utc);
     return {
       spec: moment.spec,
@@ -97,7 +97,7 @@ export function chartOf(moment: Moment): Chart {
     };
   }
 
-  const deep: DeepChart = run(() => calculateNatalChart({ ...birth, time: moment.time as string }), moment.spec);
+  const deep: DeepChart = cast(() => calculateNatalChart({ ...birth, time: moment.time as string }), moment);
   const utc = new Date(deep.utc);
   return {
     spec: moment.spec,
@@ -109,7 +109,7 @@ export function chartOf(moment: Moment): Chart {
     midheaven: deep.midheaven.longitude,
     cusps: deep.houseCusps,
     houseSystem: deep.houseSystem,
-    degradedReason: deep.degradedReason,
+    degradedReason: deep.degradedReason ? degradationReason(moment, deep.houseSystem) : null,
     ascendantUnstable: deep.ascendantUnstable,
     crossCheckMaxArcmin: deep.crossCheckMaxArcmin,
     engineAgreementArcmin: agreement(utc, deep.planets),
@@ -122,12 +122,47 @@ export function chartOf(moment: Moment): Chart {
   };
 }
 
-function run<T>(f: () => T, spec: string): T {
+/*
+ * The house engine states its refusals in Chinese. Those messages are correct and carry the right
+ * numbers, but they are not something to hand a reader, and the earlier version of this file passed
+ * them through verbatim — so a polar chart explained itself in a language the page could not render
+ * and the astrologers were given it as a caveat.
+ *
+ * The failures are classified by CONTROL FLOW rather than by matching the message text: a local time
+ * the zone never had is caught by calling `localToUtc` first, and anything that survives that and
+ * still fails is the library's own zone-versus-coordinates guard. Parsing its prose for the numbers
+ * would be fragile in exactly the cases nobody tested; stating what this realm already knows is not.
+ */
+function cast<T>(f: () => T, m: Moment): T {
+  try {
+    localToUtc(m.date, m.time ?? "12:00", m.timeZone);
+  } catch {
+    throw new Error(
+      `Cannot cast ${m.spec}: there was no such local time as ${m.date} ${m.time ?? ""} in ${m.timeZone}. ` +
+      `A daylight-saving jump skipped it, so no instant corresponds to this birth time. Check the hour.`,
+    );
+  }
   try {
     return f();
-  } catch (e) {
-    throw new Error(`Cannot cast ${spec}: ${(e as Error).message}`);
+  } catch {
+    throw new Error(
+      `Cannot cast ${m.spec}: the time zone ${m.timeZone} disagrees with what the coordinates ` +
+      `${m.latitude},${m.longitude} imply, by more than the engine will accept. Before standard time a ` +
+      `zone is a particular place's own local mean time, so a historical birth needs the zone of the ` +
+      `BIRTHPLACE, not of the country's present-day capital. An hour of error is a whole rising sign.`,
+    );
   }
+}
+
+/*
+ * Why the house system was abandoned, in English and from this realm's own facts. The engine
+ * degrades inside the polar circles, where Placidus is undefined; `ascendantUnstable` carries the
+ * separate and stranger consequence, so this says only the one thing.
+ */
+function degradationReason(m: Moment, houseSystem: string): string {
+  return `Placidus houses are undefined inside the polar circles, so ${houseSystem} houses were used ` +
+    `instead: the birthplace latitude is ${Math.abs(m.latitude).toFixed(2)}\u00b0, beyond the 66\u00b0 limit. ` +
+    `House positions here are a convention, not a measurement.`;
 }
 
 function placementsAt(utc: Date, cusps: number[]): Placement[] {

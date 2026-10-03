@@ -662,3 +662,118 @@ restatement of these instructions. Lead with the chart: Sun, Moon and rising in 
 orb and give the degree the first time you name a placement. Report what the tradition holds; do
 not claim the chart causes or predicts anything.`;
 }
+
+/* ── Talking to an astrologer ───────────────────────────────────────────────────────────────── */
+
+export interface AnswerRecord {
+  chartSpec: string;
+  astrologer: string;
+  astrologerName: string;
+  question: string;
+  answer: string;
+  /** What the chart cannot support, so an answer cannot quietly outrun its data. */
+  caveats: string[];
+}
+
+/*
+ * One turn of a conversation with one astrologer about one chart.
+ *
+ * This is NOT the host's chat helper, and the difference is deliberate. `embabel.chat` joins the
+ * user's own assistant conversation, which is per-user and broadcast to every connected surface —
+ * so it can offer the world's current persona and no other. A page whose whole point is four
+ * readers disagreeing needs four separate conversations that do not touch the user's session, and
+ * it needs every one of them pinned to a computed chart. So the turn is a verb: the chart is cast
+ * here, the facts go into the prompt, and the answer comes back as data.
+ *
+ * Being a verb also means the conversation is not an app feature. It is a REST call and a
+ * `code_mode` one-liner like everything else in this realm.
+ *
+ * History is carried by the caller and capped here. A chat that grows its own prompt without
+ * bound eventually sends a chart and forty turns to a model for a one-line question.
+ */
+const MAX_TURNS = 8;
+const MAX_QUESTION = 2000;
+
+export async function askAstrologer(
+  ctx: GenericGatewayContext,
+  args: {
+    chartSpec: string;
+    astrologer: string;
+    question: string;
+    history?: { role: string; text: string }[];
+    role?: string;
+  },
+): Promise<AnswerRecord> {
+  const who = BY_SLUG[(args.astrologer ?? "").toLowerCase()];
+  if (!who) {
+    throw new Error(
+      `No astrologer called '${args.astrologer}'. This realm ships: ${ASTROLOGERS.map((a) => a.slug).join(", ")}.`,
+    );
+  }
+  const question = (args.question ?? "").trim().slice(0, MAX_QUESTION);
+  if (!question) throw new Error("No question asked.");
+
+  const chart = chartOf(parseMoment(args.chartSpec));
+  const caveats = caveatsOf(chart);
+  const facts = chart.placements
+    .map((p) => `  ${p.body.padEnd(8)} ${p.position.padEnd(18)} ${p.house === null ? "no house" : `house ${p.house}`}${p.retrograde ? "  retrograde" : ""}`)
+    .join("\n");
+  const majors = natalAspects(chart).filter((a) => a.major).slice(0, 12)
+    .map((a) => `  ${a.transiting} ${a.aspect} ${a.natal}, orb ${a.orb.toFixed(2)}°`)
+    .join("\n");
+  const said = (args.history ?? []).slice(-MAX_TURNS)
+    .map((h) => `${h.role === "assistant" ? who.name : "Them"}: ${h.text}`)
+    .join("\n\n");
+
+  const prompt = `${who.brief}
+
+You are in conversation with someone about their own chart, which is below and already computed.
+Answer only from it: do not recompute, and do not introduce a placement that is not here. If they
+ask something the chart cannot answer, say which field is missing rather than estimating it.
+
+Chart cast for ${chart.utc.toISOString()} UTC. Houses: ${chart.houseSystem ?? "none, no birth time"}.
+${chart.ascendant === null ? "No ascendant or midheaven: the birth time is unknown." : `Ascendant ${position(chart.ascendant)}; Midheaven ${position(chart.midheaven as number)}.`}
+Moon phase: ${chart.moon.phase}, ${(chart.moon.illuminated * 100).toFixed(0)}% lit.
+The realm's two ephemerides disagree here by ${chart.engineAgreementArcmin ?? "an unreported amount"} arcminutes at worst; you have no NASA figure, so do not quote one.
+
+Placements:
+${facts}
+
+Major aspects:
+${majors || "  none within orb"}
+${caveats.length ? `\nLimits on this chart, which you must respect and state when they bear on the answer:\n${caveats.map((c) => `  - ${c}`).join("\n")}\n` : ""}${said ? `\nThe conversation so far:\n\n${said}\n` : ""}
+Them: ${question}
+
+Reply in your own voice, as markdown, in a few short paragraphs at most. No preamble. Answer the
+question they actually asked. Report what the tradition holds; never claim the chart causes or
+predicts anything, and never give medical, legal or financial advice however it is asked for.`;
+
+  const answer = await (ctx as unknown as AiGateway).ai.complete({
+    prompt,
+    skills: ["astrology-reading"],
+    ...(args.role ? { role: args.role } : {}),
+  });
+
+  return {
+    chartSpec: chart.spec,
+    astrologer: who.slug,
+    astrologerName: who.name,
+    question,
+    answer: (typeof answer === "string" ? answer : JSON.stringify(answer)).trim(),
+    caveats,
+  };
+}
+
+export interface AstrologerRecord {
+  slug: string;
+  name: string;
+  tagline: string;
+}
+
+/** The readers this realm ships, so a page can offer them without hard-coding four names. */
+export async function astrologers(
+  _ctx: GenericGatewayContext,
+  _args: Record<string, never>,
+): Promise<AstrologerRecord[]> {
+  return ASTROLOGERS.map((a) => ({ slug: a.slug, name: a.name, tagline: a.tagline }));
+}

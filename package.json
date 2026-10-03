@@ -8,7 +8,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "build": "node scripts/build.mjs && embabel-build-manifest",
-    "check": "npm run typecheck && npm test && npm run build"
+    "check": "npm run typecheck && npm test && npm run build && npm run test:app",
+    "test:app": "playwright test"
   },
   "dependencies": {
     "astronomy-engine": "2.1.19",
@@ -16,6 +17,7 @@
   },
   "devDependencies": {
     "@embabel/runtime-types": "file:../assistant/tooling/runtime-types",
+    "@playwright/test": "^1.63.0",
     "@types/node": "^20.0.0",
     "esbuild": "^0.25.0",
     "typescript": "^5.4.0",

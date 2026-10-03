@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Wheel</title>
+<meta name="description" content="Cast a natal chart wheel from any birth data, read its placements, aspects, houses and today's transits, audit every position against NASA JPL Horizons, and talk to four astrologers who disagree about the same chart.">
+<link rel="stylesheet" href="/api/v1/apps-runtime/v1/theme.css">
+<script src="/api/v1/apps-runtime/v1/embabel.js"></script>
+<script src="/api/v1/apps-runtime/gateway.js"></script>
+<script type="application/embabel-app+json">
+{"version":1,"name":"the-wheel","requires":{"lenses":[],"views":["CastChart","ChartPlacements","ChartHouses","ChartAspects","TransitsOnDay","AuditAgainstNasa","FindBirthplace"],"realms":["astrology"],"namespaces":["astrology"]}}
+</script>
+<style>
+  :root {
+    --bg: #0a0a0f; --surface: #13131a; --border: #1e1e2e;
+    --cyan: #63c0f5; --purple: #9f77cd; --green: #3fd73c;
+    --dim: #6b7280; --text: #e5e7eb; --warn: #e0a32e; --hard: #d16a6a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 0 0 48px; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 15px; line-height: 1.55;
+  }
+  header { padding: 20px 24px 14px; border-bottom: 1px solid var(--border); }
+  h1 { margin: 0 0 2px; font-size: 1.35rem; font-weight: 600; letter-spacing: -0.01em; }
+  h1 span { color: var(--cyan); }
+  .sub { color: var(--dim); font-size: 0.85rem; margin: 0; }
+  form.birth { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; margin-top: 14px; }
+  .field { display: flex; flex-direction: column; gap: 3px; }
+  .field label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--dim); }
+  input, select, button, textarea {
+    font-family: inherit; font-size: 0.9rem; background: var(--surface); color: var(--text);
+    border: 1px solid var(--border); border-radius: 6px; padding: 7px 9px;
+  }
+  input:focus, select:focus, textarea:focus { outline: 1px solid var(--cyan); border-color: var(--cyan); }
+  button { cursor: pointer; border-color: #2a2a3e; }
+  button:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); }
+  button:disabled { opacity: 0.45; cursor: default; }
+  button.primary { background: #16293a; border-color: var(--cyan); color: var(--cyan); font-weight: 600; }
+  main { display: grid; grid-template-columns: minmax(340px, 1fr) minmax(360px, 1.1fr); gap: 20px; padding: 20px 24px; align-items: start; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+  .panel > h2 { margin: 0 0 10px; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--dim); font-weight: 600; }
+  #wheelWrap { display: flex; justify-content: center; }
+  svg.wheel { width: 100%; max-width: 460px; height: auto; }
+  .summary { text-align: center; margin: 4px 0 12px; }
+  .summary .big { font-size: 1.05rem; }
+  .summary .big b { color: var(--cyan); font-weight: 600; }
+  .summary .utc { color: var(--dim); font-size: 0.78rem; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 10px; }
+  .chip { font-size: 0.72rem; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--border); color: var(--dim); }
+  .chip.ok { border-color: #1f3a2a; color: var(--green); }
+  .chip.warn { border-color: #3a3220; color: var(--warn); }
+  .caveat { margin-top: 10px; padding: 9px 11px; border-left: 2px solid var(--warn); background: #1a1710; border-radius: 0 6px 6px 0; font-size: 0.82rem; color: #d8c89a; }
+  .tabs { display: flex; gap: 2px; flex-wrap: wrap; margin-bottom: 12px; border-bottom: 1px solid var(--border); }
+  .tabs button { background: none; border: none; border-bottom: 2px solid transparent; border-radius: 0; padding: 7px 11px; color: var(--dim); font-size: 0.85rem; }
+  .tabs button[aria-selected="true"] { color: var(--cyan); border-bottom-color: var(--cyan); }
+  table { width: 100%; border-collapse: collapse; font-size: 0.86rem; }
+  th { text-align: left; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--dim); font-weight: 600; padding: 4px 6px; border-bottom: 1px solid var(--border); }
+  td { padding: 5px 6px; border-bottom: 1px solid #16161f; }
+  tr:last-child td { border-bottom: none; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .glyph { color: var(--cyan); font-size: 1rem; }
+  .retro { color: var(--warn); font-size: 0.72rem; }
+  .harmonious { color: var(--green); }
+  .hardasp { color: var(--hard); }
+  .note { color: var(--dim); font-size: 0.78rem; margin: 8px 0 0; }
+  .state { color: var(--dim); font-size: 0.86rem; padding: 14px 0; text-align: center; }
+  .state.bad { color: var(--hard); text-align: left; }
+  section.chat { margin: 0 24px 24px; }
+  .astrologers { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; margin-bottom: 12px; }
+  .astro { text-align: left; padding: 9px 11px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); cursor: pointer; }
+  .astro[aria-pressed="true"] { border-color: var(--purple); background: #1b1526; }
+  .astro b { display: block; font-size: 0.92rem; color: var(--text); }
+  .astro[aria-pressed="true"] b { color: var(--purple); }
+  .astro span { font-size: 0.74rem; color: var(--dim); line-height: 1.4; }
+  #log { max-height: 420px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+  .msg { padding: 10px 12px; border-radius: 8px; font-size: 0.88rem; }
+  .msg.them { background: #16293a; border: 1px solid #1f3a4f; margin-left: 15%; }
+  .msg.astro-reply { background: #171320; border: 1px solid #262036; }
+  .msg .who { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--purple); margin-bottom: 4px; }
+  .msg.them .who { color: var(--cyan); }
+  .msg p { margin: 0 0 7px; } .msg p:last-child { margin-bottom: 0; }
+  .msg strong { color: #fff; } .msg em { color: #cbb7e8; font-style: italic; }
+  .msg h3 { font-size: 0.86rem; margin: 9px 0 4px; color: var(--purple); }
+  .ask { display: flex; gap: 8px; margin-top: 12px; }
+  .ask textarea { flex: 1; resize: vertical; min-height: 44px; }
+  .starters { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .starters button { font-size: 0.76rem; padding: 4px 9px; color: var(--dim); }
+  footer { padding: 0 24px 16px; }
+  footer a { color: var(--dim); font-size: 0.78rem; text-decoration: none; border-bottom: 1px dotted var(--dim); }
+  footer a:hover { color: var(--cyan); border-bottom-color: var(--cyan); }
+  #how { display: none; margin: 0 24px 28px; }
+  #how[data-open="true"] { display: block; }
+  #how h2 { font-size: 1rem; color: var(--cyan); margin: 0 0 10px; }
+  #how h3 { font-size: 0.85rem; margin: 18px 0 6px; color: var(--purple); }
+  #how p, #how li { font-size: 0.86rem; color: #c3c7d0; }
+  #how code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.8rem; color: var(--cyan); }
+  #how pre { background: #0d0d14; border: 1px solid var(--border); border-radius: 7px; padding: 11px; overflow-x: auto; }
+  #how pre code { color: #b9c4d0; }
+  .places { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
+  .places button { text-align: left; font-size: 0.82rem; }
+  .spin { display: inline-block; width: 11px; height: 11px; border: 2px solid var(--border); border-top-color: var(--cyan); border-radius: 50%; animation: s 0.8s linear infinite; vertical-align: -1px; }
+  @keyframes s { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<header>
+  <h1>The <span>Wheel</span></h1>
+  <p class="sub">A chart computed on demand, to arcsecond accuracy, and four astrologers who disagree about it.</p>
+  <form class="birth" id="birthForm">
+    <div class="field"><label for="bornOn">Born on</label><input type="date" id="bornOn" value="1962-05-17" required></div>
+    <div class="field"><label for="bornAt">At (local, 24h)</label><input type="time" id="bornAt" value="14:30"></div>
+    <div class="field" style="flex:1 1 170px"><label for="place">Birthplace</label><input type="text" id="place" placeholder="Melbourne" autocomplete="off"></div>
+    <button type="button" id="findPlace">Find</button>
+    <div class="field"><label for="lat">Latitude</label><input type="number" id="lat" step="0.0001" value="51.5074" required style="width:108px"></div>
+    <div class="field"><label for="lon">Longitude</label><input type="number" id="lon" step="0.0001" value="-0.1278" required style="width:108px"></div>
+    <div class="field" style="flex:1 1 150px"><label for="tz">Zone (of the birthplace)</label><input type="text" id="tz" value="Europe/London" required></div>
+    <button type="submit" class="primary">Cast</button>
+  </form>
+  <div class="places" id="places"></div>
+  <p class="note" id="tzNote">Leave the time empty if it is unknown and the chart comes back without houses rather than inventing them. The zone is the <strong>birthplace's</strong>, not yours &mdash; an hour of error is a whole rising sign.</p>
+</header>
+
+<main>
+  <div class="panel">
+    <h2>The wheel</h2>
+    <div class="summary" id="summary"><div class="state"><span class="spin"></span> Casting&hellip;</div></div>
+    <div id="wheelWrap"></div>
+    <div id="caveats"></div>
+  </div>
+  <div class="panel">
+    <h2>The figure</h2>
+    <div class="tabs" id="tabs" role="tablist">
+      <button role="tab" data-tab="placements" aria-selected="true">Placements</button>
+      <button role="tab" data-tab="aspects" aria-selected="false">Aspects</button>
+      <button role="tab" data-tab="houses" aria-selected="false">Houses</button>
+      <button role="tab" data-tab="transits" aria-selected="false">Transits today</button>
+      <button role="tab" data-tab="nasa" aria-selected="false">NASA audit</button>
+    </div>
+    <div id="tabBody"><div class="state">Waiting for a chart.</div></div>
+  </div>
+</main>
+
+<section class="chat panel">
+  <h2>Ask an astrologer</h2>
+  <div class="astrologers" id="astrologers"></div>
+  <div id="log"><div class="state">Pick a reader and ask them something about the chart above.</div></div>
+  <div class="ask">
+    <textarea id="question" rows="2" placeholder="Ask about this chart&hellip;"></textarea>
+    <button type="button" class="primary" id="send">Ask</button>
+  </div>
+  <div class="starters" id="starters"></div>
+  <p class="note">Each reader keeps their own thread here, and every answer is grounded in the chart on this page &mdash; not in your assistant conversation, which is a separate thing and is not joined by this panel.</p>
+</section>
+
+<footer>
+  <a href="#how" id="howLink">How this works</a>
+</footer>
+
+<article id="how" class="panel">
+  <h2>How this works</h2>
+  <p>Nothing on this page is stored. Every panel is a <strong>Virtual Cypher</strong> hop from a single
+  pinned key, computed when you ask for it and cached afterwards.</p>
+
+  <h3>The key</h3>
+  <p>The whole chart hangs off one string, the way a chess analysis hangs off a FEN:</p>
+  <pre><code>1962-05-17T14:30|51.5074,-0.1278|Europe/London
+      date  time   lat,lon          zone OF THE BIRTHPLACE</code></pre>
+  <p>Drop the <code>T14:30</code> and the chart returns with no ascendant and no houses, because
+  without a birth time there are none. The realm will not invent them. The zone is the one field
+  people get wrong, and getting it wrong moves the rising sign by a whole sign &mdash; which is why
+  <em>Find</em> resolves a place name to its coordinates <em>and</em> its historical IANA zone.</p>
+
+  <h3>The views behind each panel</h3>
+  <p>Each is a saved view in your world; this page sends the birth fields and renders the rows.</p>
+  <ul>
+    <li><code>CastChart</code> &mdash; the summary line and the honesty chips.</li>
+    <li><code>ChartPlacements</code> &mdash; the ten bodies, and the planet positions drawn on the wheel.</li>
+    <li><code>ChartHouses</code> &mdash; the twelve cusps, which are the spokes.</li>
+    <li><code>ChartAspects</code> &mdash; the lines across the middle.</li>
+    <li><code>TransitsOnDay</code> &mdash; today's sky against this chart. Today is computed in the page at load, never baked in.</li>
+    <li><code>AuditAgainstNasa</code> &mdash; ten live requests to JPL. Button-triggered, because it is paced.</li>
+    <li><code>FindBirthplace</code> &mdash; the place lookup.</li>
+  </ul>
+  <p>The wheel itself is one of those view results drawn as SVG:</p>
+  <pre><code>MATCH (b:BirthMoment {spec: $spec})-[:HAS_PLACEMENT]-&gt;(p:Placement)
+RETURN p.body, p.position, p.sign, p.house, p.retrograde, p.dailyMotion
+ORDER BY p.longitude</code></pre>
+
+  <h3>Where the numbers come from</h3>
+  <p>Positions from <strong>astronomy-engine</strong>; houses, ascendant and the birthplace's
+  historical time zone from <strong>deepnatal</strong>. Both are bundled into the realm's handler, so
+  casting a chart needs no network at all. The two libraries compute positions independently and the
+  chart reports how far they disagreed &mdash; that is the <span class="mono">engines agree to</span>
+  chip, in arcminutes.</p>
+
+  <h3>What the chips mean, and what an empty panel means</h3>
+  <ul>
+    <li><strong>engines agree to N'</strong> &mdash; the worst disagreement between the two ephemerides,
+    in arcminutes. Under a few arcminutes changes nothing astrologically; it is shown because a tool
+    that hides its own error bars is asking to be trusted rather than checked.</li>
+    <li><strong>no birth time</strong> &mdash; houses and ascendant are absent, so the Houses panel is
+    empty and every planet's house is blank. That is the correct answer, not a failure.</li>
+    <li><strong>whole-sign houses</strong> &mdash; Placidus is undefined inside the polar circles, so it
+    was abandoned and the page says so. House positions there are a convention.</li>
+    <li><strong>Moon's sign uncertain</strong> &mdash; with no birth time, the Moon moved far enough on
+    the birth day to cross a sign, so its sign depends on the hour.</li>
+    <li><strong>zone in doubt</strong> &mdash; another IANA zone is defensible for those coordinates.
+    Resolve it before reading the houses.</li>
+    <li>An empty <strong>Transits</strong> panel means nothing is within orb today, which is rare but
+    real. An empty <strong>NASA audit</strong> means you have not run it yet.</li>
+  </ul>
+
+  <h3>The astrologers</h3>
+  <p>Four readers, each a prompt brief plus the realm's <code>astrology-reading</code> skill, calling
+  <code>gateway.astrology.askAstrologer</code>. The facts are computed first and handed to the model
+  &mdash; it never recomputes a position and is told not to introduce one that is not in the chart. A
+  position is a fact and a reading is a judgement, so in the graph they are separate types with
+  separate caches, and this page keeps them in separate panels for the same reason.</p>
+  <p>This panel is <em>not</em> your assistant's chat. The host's chat session is per-user and
+  broadcast to every surface you have open, so it can wear one persona at a time; four readers
+  disagreeing needs four threads that leave your session alone.</p>
+
+  <h3>What the appliance did here that a conventional stack could not</h3>
+  <p>There is no chart database and no nightly job. The first time anyone asks for a given birth
+  moment, the world computes the chart, the placements, the aspects, the cusps and the transits,
+  stitches them into a graph you can traverse, and caches them as immutable &mdash; because a chart is
+  a deterministic function of an instant and a place, so the answer for a key is the answer forever.
+  A second request is a graph read.</p>
+  <p>The same key reaches the same chart from <em>stored</em> birth data: a <code>BirthRecord</code>
+  you keep joins to the identical computed <code>NatalChart</code>, so "my chart" is a question with no
+  arguments. And <code>SkyMoment</code> is keyed on an instant and nothing else, which means anything
+  in your world carrying a timestamp &mdash; a build, an invoice, a conversation &mdash; can be given
+  the sky that stood over it. Those views compute their own base rate, because Mercury is retrograde
+  about a fifth of the time and a figure without its denominator is a credulity machine.</p>
+  <p>Then the part no other astrology surface offers: <code>AuditAgainstNasa</code> asks JPL Horizons
+  where each body actually was and reports the difference in arcseconds. The arithmetic is checkable
+  rather than merely confident.</p>
+  <p>Astrology has no known mechanism and no reliable evidence behind it. This page computes a real
+  configuration of the heavens and reads a symbolic tradition over it, and tries hard not to confuse
+  the two. Ask Cassius.</p>
+</article>
+
+
+<script>
+(function () {
+  "use strict";
+
+  /* Every value from a view or a model is escaped before it reaches innerHTML. */
+  function escapeHtml(v) {
+    return String(v === null || v === undefined ? "" : v)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  }
+
+  var GLYPH = {
+    Sun: "☉", Moon: "☽", Mercury: "☿", Venus: "♀", Mars: "♂",
+    Jupiter: "♃", Saturn: "♄", Uranus: "♅", Neptune: "♆", Pluto: "♇"
+  };
+  var SIGN_GLYPH = ["♈","♉","♊","♋","♌","♍","♎","♏","♐","♑","♒","♓"];
+  var SIGNS = ["Aries","Taurus","Gemini","Cancer","Leo","Virgo","Libra","Scorpio","Sagittarius","Capricorn","Aquarius","Pisces"];
+  var HARMONIOUS = { trine: 1, sextile: 1, conjunction: 1 };
+
+  var state = {
+    spec: null, args: null, chart: null, placements: [], houses: [], aspects: [],
+    transits: null, nasa: null, tab: "placements",
+    astrologers: [], who: null, threads: {}
+  };
+
+  var el = function (id) { return document.getElementById(id); };
+
+  /* Today, computed at load. Never baked into the page. */
+  function today() {
+    var d = new Date();
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  }
+
+  /*
+   * `timeKnown` is sent EXPLICITLY rather than signalled by an empty bornAt. A view parameter that
+   * declares a default substitutes it when given an empty string, so an empty time field silently
+   * produced a confident chart for the default hour — complete with a rising sign the user had not
+   * supplied an hour for. The flag cannot be defaulted into the wrong answer.
+   */
+  function birthArgs() {
+    var at = el("bornAt").value;
+    return {
+      bornOn: el("bornOn").value,
+      bornAt: at || "12:00",
+      timeKnown: !!at,
+      latitude: parseFloat(el("lat").value),
+      longitude: parseFloat(el("lon").value),
+      timeZone: el("tz").value.trim()
+    };
+  }
+
+  function specOf(a) {
+    var when = a.timeKnown ? a.bornOn + "T" + a.bornAt : a.bornOn;
+    return when + "|" + a.latitude + "," + a.longitude + "|" + a.timeZone;
+  }
+
+  /*
+   * One place every view call goes through. The runtime returns the full execution envelope, so an
+   * EMPTY outcome is distinguished from a failure here rather than both rendering as nothing.
+   */
+  function runView(name, args) {
+    return embabel.views.invoke(name, args).then(function (r) {
+      if (r && (r.status === "SUCCEEDED" || r.outcome === "OK" || r.outcome === "EMPTY" || r.outcome === "PARTIAL")) {
+        return { rows: r.data || [], warnings: r.warnings || [], outcome: r.outcome };
+      }
+      throw new Error((r && r.error && (r.error.message || r.error)) || (name + " did not succeed"));
+    });
+  }
+
+  function errorBox(where, e) {
+    var msg = e && e.message ? e.message : String(e);
+    return '<div class="state bad"><strong>' + escapeHtml(where) + '</strong><br>' + escapeHtml(msg) + "</div>";
+  }
+
+  /* ── The wheel ─────────────────────────────────────────────────────────────────────────── */
+
+  var CX = 230, CY = 230, R_OUT = 222, R_SIGN = 190, R_HOUSE = 176, R_PLANET = 150, R_ASPECT = 112;
+
+  /*
+   * Screen angle for an ecliptic longitude. The ascendant sits at the nine-o'clock point and
+   * longitude increases counterclockwise from it, which is the conventional wheel. With y growing
+   * downward, phi = 180 + (L - asc) puts house 1 below the left horizon, where it belongs.
+   *
+   * A chart with no birth time has no ascendant, so 0 Aries takes the left point instead and the
+   * wheel is honestly a zodiac ring with no houses on it.
+   */
+  function phi(L) { return 180 + (L - (state.chart && state.chart.ascendantLongitude !== null && state.chart.ascendantLongitude !== undefined ? state.chart.ascendantLongitude : 0)); }
+  function pt(r, L) {
+    var a = phi(L) * Math.PI / 180;
+    return [CX + r * Math.cos(a), CY - r * Math.sin(a)];
+  }
+  function n2(x) { return Math.round(x * 100) / 100; }
+
+  function drawWheel() {
+    var asc = state.chart ? state.chart.ascendantLongitude : null;
+    var hasHouses = state.houses.length === 12;
+    var o = [];
+    o.push('<svg class="wheel" viewBox="0 0 460 460" role="img" aria-label="Natal chart wheel">');
+    o.push('<circle cx="230" cy="230" r="222" fill="none" stroke="#1e1e2e"/>');
+    o.push('<circle cx="230" cy="230" r="190" fill="none" stroke="#1e1e2e"/>');
+    o.push('<circle cx="230" cy="230" r="176" fill="none" stroke="#16161f"/>');
+    o.push('<circle cx="230" cy="230" r="112" fill="none" stroke="#16161f"/>');
+
+    /* Sign ring: twelve 30-degree sectors, each labelled at its midpoint. */
+    for (var i = 0; i < 12; i++) {
+      var start = pt(R_OUT, i * 30), inner = pt(R_SIGN, i * 30);
+      o.push('<line x1="' + n2(inner[0]) + '" y1="' + n2(inner[1]) + '" x2="' + n2(start[0]) + '" y2="' + n2(start[1]) + '" stroke="#1e1e2e"/>');
+      var mid = pt((R_OUT + R_SIGN) / 2, i * 30 + 15);
+      o.push('<text x="' + n2(mid[0]) + '" y="' + n2(mid[1]) + '" fill="#9f77cd" font-size="15" text-anchor="middle" dominant-baseline="central">' + SIGN_GLYPH[i] + "</text>");
+    }
+
+    /* House cusps as spokes; the ascendant and midheaven drawn heavier because they are the angles. */
+    if (hasHouses) {
+      for (var h = 0; h < 12; h++) {
+        var cusp = state.houses[h];
+        var a1 = pt(R_ASPECT, cusp.longitude), a2 = pt(R_HOUSE, cusp.longitude);
+        var angle = (cusp.house === 1 || cusp.house === 10);
+        o.push('<line x1="' + n2(a1[0]) + '" y1="' + n2(a1[1]) + '" x2="' + n2(a2[0]) + '" y2="' + n2(a2[1]) +
+               '" stroke="' + (angle ? "#63c0f5" : "#242436") + '" stroke-width="' + (angle ? 1.6 : 1) + '"/>');
+        var next = state.houses[(h + 1) % 12];
+        var span = ((next.longitude - cusp.longitude) % 360 + 360) % 360;
+        var lbl = pt(R_ASPECT + 14, cusp.longitude + span / 2);
+        o.push('<text x="' + n2(lbl[0]) + '" y="' + n2(lbl[1]) + '" fill="#4b5563" font-size="9.5" text-anchor="middle" dominant-baseline="central">' + cusp.house + "</text>");
+      }
+      var ascPt = pt(R_OUT, asc);
+      o.push('<text x="' + n2(ascPt[0] < 230 ? ascPt[0] + 4 : ascPt[0] - 4) + '" y="' + n2(ascPt[1] - 7) +
+             '" fill="#63c0f5" font-size="9" text-anchor="' + (ascPt[0] < 230 ? "start" : "end") + '">ASC</text>');
+    }
+
+    /* Aspect lines inside, drawn before the planets so the glyphs sit on top. */
+    for (var k = 0; k < state.aspects.length; k++) {
+      var asp = state.aspects[k];
+      var pa = byBody(asp.from), pb = byBody(asp.to);
+      var la = pa ? pa.longitude : angleLongitude(asp.from);
+      var lb = pb ? pb.longitude : angleLongitude(asp.to);
+      if (la === null || lb === null) continue;
+      var A = pt(R_ASPECT, la), B = pt(R_ASPECT, lb);
+      var warm = HARMONIOUS[asp.aspect] ? "#3fd73c" : "#d16a6a";
+      var strength = Math.max(0.12, 1 - asp.orb / 8);
+      o.push('<line x1="' + n2(A[0]) + '" y1="' + n2(A[1]) + '" x2="' + n2(B[0]) + '" y2="' + n2(B[1]) +
+             '" stroke="' + warm + '" stroke-opacity="' + n2(strength * 0.6) + '" stroke-width="' + n2(0.6 + strength) + '"/>');
+    }
+
+    /*
+     * Planets. Two bodies within six degrees would overprint, so each successive one in a cluster is
+     * pushed outward a little — the wheel stays readable without moving anything off its degree.
+     */
+    var sorted = state.placements.slice().sort(function (x, y) { return x.longitude - y.longitude; });
+    var lastLon = -99, stack = 0;
+    for (var j = 0; j < sorted.length; j++) {
+      var pl = sorted[j];
+      if (pl.longitude - lastLon < 6) { stack++; } else { stack = 0; }
+      lastLon = pl.longitude;
+      var rr = R_PLANET - stack * 17;
+      var P = pt(rr, pl.longitude);
+      var tick1 = pt(R_HOUSE, pl.longitude), tick2 = pt(R_HOUSE - 7, pl.longitude);
+      o.push('<line x1="' + n2(tick1[0]) + '" y1="' + n2(tick1[1]) + '" x2="' + n2(tick2[0]) + '" y2="' + n2(tick2[1]) + '" stroke="#2a2a3e"/>');
+      o.push('<text x="' + n2(P[0]) + '" y="' + n2(P[1]) + '" fill="#63c0f5" font-size="16" text-anchor="middle" dominant-baseline="central">' +
+             (GLYPH[pl.body] || "?") + "</text>");
+      var degTxt = Math.floor(pl.degreeInSign !== undefined ? pl.degreeInSign : 0) + "°" + (pl.retrograde ? "℞" : "");
+      o.push('<text x="' + n2(P[0]) + '" y="' + n2(P[1] + 13) + '" fill="' + (pl.retrograde ? "#e0a32e" : "#6b7280") +
+             '" font-size="8.5" text-anchor="middle">' + escapeHtml(degTxt) + "</text>");
+    }
+    o.push("</svg>");
+    el("wheelWrap").innerHTML = o.join("");
+  }
+
+  function byBody(name) {
+    for (var i = 0; i < state.placements.length; i++) if (state.placements[i].body === name) return state.placements[i];
+    return null;
+  }
+  function angleLongitude(name) {
+    if (!state.chart) return null;
+    if (name === "Ascendant") return state.chart.ascendantLongitude;
+    if (name === "Midheaven") return state.chart.midheavenLongitude;
+    return null;
+  }
+
+  /* ── Panels ────────────────────────────────────────────────────────────────────────────── */
+
+  function renderSummary() {
+    var c = state.chart;
+    if (!c) { el("summary").innerHTML = '<div class="state">No chart.</div>'; return; }
+    var chips = [];
+    if (c.enginesAgreeToArcmin !== null && c.enginesAgreeToArcmin !== undefined) {
+      chips.push('<span class="chip ok" title="Worst disagreement between the realm’s two independent ephemerides">engines agree to ' + escapeHtml(c.enginesAgreeToArcmin) + "′</span>");
+    }
+    chips.push('<span class="chip">' + escapeHtml(c.houseSystem || "no houses") + "</span>");
+    chips.push('<span class="chip">' + escapeHtml(c.moonPhase || "") + "</span>");
+    if (!c.timeKnown) chips.push('<span class="chip warn">no birth time</span>');
+    if (c.moonSignUncertain) chips.push('<span class="chip warn">Moon’s sign uncertain</span>');
+    if (c.houseSystemDegraded) chips.push('<span class="chip warn">houses degraded</span>');
+    if (c.timeZoneDoubt) chips.push('<span class="chip warn">zone in doubt</span>');
+
+    var line = "☉ <b>" + escapeHtml(c.sun) + "</b> · ☽ <b>" + escapeHtml(c.moon) + "</b>" +
+      (c.rising ? " · ASC <b>" + escapeHtml(c.rising) + "</b>" : "");
+    el("summary").innerHTML =
+      '<div class="big">' + line + "</div>" +
+      '<div class="utc">' + (c.ascendant ? escapeHtml(c.ascendant) + " rising · MC " + escapeHtml(c.midheaven) + " · " : "") +
+      "cast for " + escapeHtml(c.castForUtc) + " UTC</div>" +
+      '<div class="chips">' + chips.join("") + "</div>";
+
+    var cav = [];
+    if (!c.timeKnown) cav.push("No birth time, so this chart has no ascendant and no houses. Every planet’s house is blank, and that is the correct answer rather than a failure.");
+    if (c.moonSignUncertain) cav.push("The Moon crossed a sign on the birth day, so its sign depends on the hour of birth.");
+    if (c.houseSystemDegraded) cav.push(c.houseSystemDegraded);
+    if (c.timeZoneDoubt) cav.push(c.timeZoneDoubt);
+    el("caveats").innerHTML = cav.map(function (t) { return '<div class="caveat">' + escapeHtml(t) + "</div>"; }).join("");
+  }
+
+  function table(head, rows) {
+    if (!rows.length) return "";
+    return "<table><thead><tr>" + head.map(function (h) {
+      return '<th' + (h.num ? ' class="num"' : "") + ">" + escapeHtml(h.label) + "</th>";
+    }).join("") + "</tr></thead><tbody>" + rows.join("") + "</tbody></table>";
+  }
+
+  function renderTab() {
+    var body = el("tabBody");
+    var t = state.tab;
+    if (t === "placements") {
+      if (!state.placements.length) { body.innerHTML = '<div class="state">No placements.</div>'; return; }
+      var rows = state.placements.map(function (p) {
+        return "<tr><td><span class=\"glyph\">" + (GLYPH[p.body] || "") + "</span> " + escapeHtml(p.body) + "</td>" +
+          "<td>" + escapeHtml(p.position) + "</td>" +
+          '<td class="num">' + (p.house === null || p.house === undefined ? "—" : escapeHtml(p.house)) + "</td>" +
+          '<td class="num">' + (p.retrograde ? '<span class="retro">℞ retro</span>' : "") + "</td>" +
+          '<td class="num">' + escapeHtml((p.degreesPerDay !== undefined && p.degreesPerDay !== null) ? Number(p.degreesPerDay).toFixed(2) : "") + "</td></tr>";
+      });
+      body.innerHTML = table([{ label: "Body" }, { label: "Position" }, { label: "House", num: 1 }, { label: "", num: 1 }, { label: "°/day", num: 1 }], rows) +
+        '<p class="note">Longitudes are apparent geocentric, true ecliptic of date — the astrologer’s coordinate, and the one NASA reports. Degrees per day is signed; negative is retrograde.</p>';
+    } else if (t === "aspects") {
+      if (!state.aspects.length) { body.innerHTML = '<div class="state">Nothing within orb.</div>'; return; }
+      var arows = state.aspects.map(function (a) {
+        var cls = HARMONIOUS[a.aspect] ? "harmonious" : "hardasp";
+        return "<tr><td>" + escapeHtml(a.from) + "</td>" +
+          '<td class="' + cls + '">' + escapeHtml(a.aspect) + "</td>" +
+          "<td>" + escapeHtml(a.to) + "</td>" +
+          '<td class="num">' + escapeHtml(Number(a.orb).toFixed(2)) + "°</td>" +
+          '<td class="num">' + (a.applying === true ? "applying" : a.applying === false ? "separating" : "—") + "</td></tr>";
+      });
+      body.innerHTML = table([{ label: "From" }, { label: "Aspect" }, { label: "To" }, { label: "Orb", num: 1 }, { label: "", num: 1 }], arows) +
+        '<p class="note">Tightest orb first: an aspect inside a degree dominates a chart, one at seven degrees is a footnote. Applying means the angle was still closing at birth.</p>';
+    } else if (t === "houses") {
+      if (!state.houses.length) {
+        body.innerHTML = '<div class="state">No houses — this chart has no birth time, so there is no ascendant to build them from.</div>';
+        return;
+      }
+      var hrows = state.houses.map(function (h) {
+        return '<tr><td class="num">' + escapeHtml(h.house) + "</td><td>" + escapeHtml(h.cusp) + "</td>" +
+          '<td class="num">' + escapeHtml(Number(h.spanDegrees).toFixed(1)) + "°</td></tr>";
+      });
+      body.innerHTML = table([{ label: "House", num: 1 }, { label: "Cusp" }, { label: "Span", num: 1 }], hrows) +
+        '<p class="note">Placidus houses are unequal. A span far from 30° is real, not an error — and at high latitudes some houses get very wide, which a wheel hides and a number does not.</p>';
+    } else if (t === "transits") {
+      if (state.transits === null) { body.innerHTML = '<div class="state"><span class="spin"></span> Reading today’s sky&hellip;</div>'; return; }
+      if (!state.transits.length) { body.innerHTML = '<div class="state">Nothing within orb today.</div>'; return; }
+      var trows = state.transits.map(function (x) {
+        var cls = HARMONIOUS[x.aspect] ? "harmonious" : "hardasp";
+        return "<tr><td><span class=\"glyph\">" + (GLYPH[x.transiting] || "") + "</span> " + escapeHtml(x.transiting) +
+          (x.retrograde ? ' <span class="retro">℞</span>' : "") + "</td>" +
+          '<td class="' + cls + '">' + escapeHtml(x.aspect) + "</td>" +
+          "<td>" + escapeHtml(x.natalPoint) + "</td>" +
+          '<td class="num">' + escapeHtml(Number(x.orb).toFixed(2)) + "°</td>" +
+          '<td class="num">' + (x.crossingHouse === null || x.crossingHouse === undefined ? "—" : escapeHtml(x.crossingHouse)) + "</td></tr>";
+      });
+      body.innerHTML = table([{ label: "Transiting" }, { label: "Aspect" }, { label: "Natal" }, { label: "Orb", num: 1 }, { label: "House", num: 1 }], trows) +
+        '<p class="note">For ' + escapeHtml(today()) + ', sky taken at noon UTC. The slow bodies — Jupiter outward — last months and are the ones worth reading; a Moon transit lasts hours.</p>';
+    } else if (t === "nasa") {
+      if (state.nasa === null) {
+        body.innerHTML = '<div class="state">This asks NASA JPL Horizons where each body actually was, and reports the difference in arcseconds.' +
+          '<br><br><button type="button" id="runNasa" class="primary">Audit this chart against NASA</button>' +
+          '<p class="note">Ten live requests to a publisher-paced source, about 20 seconds. Cached for a year afterwards.</p></div>';
+        el("runNasa").addEventListener("click", loadNasa);
+        return;
+      }
+      if (state.nasa === "loading") {
+        body.innerHTML = '<div class="state"><span class="spin"></span> Asking JPL for ten bodies&hellip;</div>';
+        return;
+      }
+      if (!state.nasa.length) { body.innerHTML = '<div class="state">JPL returned no rows for this instant.</div>'; return; }
+      var worst = 0, allAgree = true, allSameSign = true;
+      state.nasa.forEach(function (r) {
+        if (r.apartByArcsec !== null && r.apartByArcsec > worst) worst = r.apartByArcsec;
+        if (r.withinTolerance !== true) allAgree = false;
+        if (r.sameSign !== true) allSameSign = false;
+      });
+      var nrows = state.nasa.map(function (r) {
+        return "<tr><td><span class=\"glyph\">" + (GLYPH[r.body] || "") + "</span> " + escapeHtml(r.body) + "</td>" +
+          '<td class="num">' + escapeHtml(r.thisRealm) + "</td>" +
+          '<td class="num">' + escapeHtml(r.nasa === null ? "—" : r.nasa) + "</td>" +
+          '<td class="num">' + escapeHtml(r.apartByArcsec === null ? "—" : Number(r.apartByArcsec).toFixed(2)) + "″</td>" +
+          '<td class="num ' + (r.withinTolerance ? "harmonious" : "hardasp") + '">' + (r.withinTolerance === true ? "agrees" : r.withinTolerance === false ? "differs" : "not checked") + "</td></tr>";
+      });
+      body.innerHTML = table([{ label: "Body" }, { label: "This realm", num: 1 }, { label: "NASA", num: 1 }, { label: "Apart", num: 1 }, { label: "", num: 1 }], nrows) +
+        '<p class="note">Worst disagreement <strong>' + escapeHtml(worst.toFixed(2)) + "″</strong> — that is arc<em>seconds</em>, " +
+        "1/3600 of a degree. The tolerance is 60″, finer than any astrological distinction: a sign is 30° and a tight aspect is about 1°. " +
+        (allAgree ? "Every body is inside it" : "Not every body is inside it") + ", and " +
+        (allSameSign ? "NASA puts every body in the same sign this page does" : "NASA disagrees about at least one sign") +
+        " — the only disagreement an astrologer would ever notice.</p>";
+    }
+  }
+
+  /* ── Loading ───────────────────────────────────────────────────────────────────────────── */
+
+  function cast() {
+    var args = birthArgs();
+    if (!args.timeZone || !isFinite(args.latitude) || !isFinite(args.longitude)) return;
+    state.args = args;
+    state.spec = specOf(args);
+    state.chart = null; state.placements = []; state.houses = []; state.aspects = [];
+    state.transits = null; state.nasa = null;
+    el("summary").innerHTML = '<div class="state"><span class="spin"></span> Casting&hellip;</div>';
+    el("wheelWrap").innerHTML = ""; el("caveats").innerHTML = "";
+    el("tabBody").innerHTML = '<div class="state"><span class="spin"></span> Computing the figure&hellip;</div>';
+
+    /* Four parallel view calls: the chart, its bodies, its cusps and its aspects. */
+    Promise.all([
+      runView("CastChart", args),
+      runView("ChartPlacements", args),
+      runView("ChartHouses", args),
+      runView("ChartAspects", { bornOn: args.bornOn, bornAt: args.bornAt, timeKnown: args.timeKnown, latitude: args.latitude, longitude: args.longitude, timeZone: args.timeZone, majorsOnly: true, maxOrb: 8.0 })
+    ]).then(function (res) {
+      state.chart = res[0].rows[0] || null;
+      state.placements = res[1].rows;
+      state.houses = res[2].rows;
+      state.aspects = res[3].rows;
+      renderSummary();
+      drawWheel();
+      renderTab();
+      loadTransits();
+    }).catch(function (e) {
+      el("summary").innerHTML = "";
+      el("caveats").innerHTML = errorBox("The world refused this chart", e);
+      el("tabBody").innerHTML = '<div class="state">No figure to show.</div>';
+    });
+  }
+
+  function loadTransits() {
+    var a = state.args;
+    runView("TransitsOnDay", {
+      bornOn: a.bornOn, bornAt: a.bornAt, timeKnown: a.timeKnown, latitude: a.latitude,
+      longitude: a.longitude, timeZone: a.timeZone, on: today(), slowOnly: false
+    }).then(function (r) {
+      state.transits = r.rows;
+      if (state.tab === "transits") renderTab();
+    }).catch(function (e) {
+      state.transits = [];
+      if (state.tab === "transits") el("tabBody").innerHTML = errorBox("Today’s transits", e);
+    });
+  }
+
+  function loadNasa() {
+    state.nasa = "loading";
+    renderTab();
+    var a = state.args;
+    runView("AuditAgainstNasa", {
+      bornOn: a.bornOn, bornAt: a.bornAt, timeKnown: a.timeKnown,
+      latitude: a.latitude, longitude: a.longitude, timeZone: a.timeZone
+    }).then(function (r) {
+      state.nasa = r.rows;
+      renderTab();
+    }).catch(function (e) {
+      state.nasa = null;
+      el("tabBody").innerHTML = errorBox("JPL Horizons", e);
+    });
+  }
+
+  function findPlace() {
+    var q = el("place").value.trim();
+    if (!q) return;
+    var box = el("places");
+    box.innerHTML = '<div class="state"><span class="spin"></span> Looking up ' + escapeHtml(q) + "&hellip;</div>";
+    runView("FindBirthplace", { place: q }).then(function (r) {
+      if (!r.rows.length) {
+        box.innerHTML = '<div class="state">No place of that name in the gazetteer. Try a larger nearby town, or type the coordinates and zone directly.</div>';
+        return;
+      }
+      box.innerHTML = r.rows.slice(0, 8).map(function (p, i) {
+        var label = [p.place, p.region, p.country].filter(Boolean).join(", ");
+        return '<button type="button" data-i="' + i + '">' + escapeHtml(label) +
+          ' <span style="color:#6b7280">' + escapeHtml(p.timeZone) + " · " + escapeHtml(Number(p.latitude).toFixed(3)) + ", " + escapeHtml(Number(p.longitude).toFixed(3)) + "</span></button>";
+      }).join("");
+      var picks = r.rows.slice(0, 8);
+      Array.prototype.forEach.call(box.querySelectorAll("button"), function (b) {
+        b.addEventListener("click", function () {
+          var p = picks[parseInt(b.getAttribute("data-i"), 10)];
+          el("lat").value = p.latitude; el("lon").value = p.longitude; el("tz").value = p.timeZone;
+          box.innerHTML = "";
+          cast();
+        });
+      });
+    }).catch(function (e) { box.innerHTML = errorBox("Place lookup", e); });
+  }
+
+  /* ── The astrologers ───────────────────────────────────────────────────────────────────── */
+
+  /* Enough markdown for a reading: headings, bold, italic, paragraphs. Model text is escaped first. */
+  function miniMarkdown(text) {
+    var safe = escapeHtml(text);
+    var blocks = safe.split(/\n{2,}/);
+    return blocks.map(function (b) {
+      var line = b.replace(/\n/g, " ")
+        .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+        .replace(/(^|[\s(])\*([^*\n]+)\*/g, "$1<em>$2</em>");
+      var h = line.match(/^#{2,4}\s+(.*)$/);
+      if (h) return "<h3>" + h[1] + "</h3>";
+      return "<p>" + line + "</p>";
+    }).join("");
+  }
+
+  function renderAstrologers() {
+    el("astrologers").innerHTML = state.astrologers.map(function (a) {
+      return '<button type="button" class="astro" data-slug="' + escapeHtml(a.slug) + '" aria-pressed="' + (a.slug === state.who ? "true" : "false") + '">' +
+        "<b>" + escapeHtml(a.name) + "</b><span>" + escapeHtml(a.tagline) + "</span></button>";
+    }).join("");
+    Array.prototype.forEach.call(el("astrologers").querySelectorAll(".astro"), function (b) {
+      b.addEventListener("click", function () {
+        state.who = b.getAttribute("data-slug");
+        renderAstrologers();
+        renderThread();
+      });
+    });
+    var who = currentAstrologer();
+    el("starters").innerHTML = [
+      "Read this chart.",
+      "What dominates it?",
+      "What is happening to me today?",
+      "Is any of this real?"
+    ].map(function (q) { return '<button type="button" data-q="' + escapeHtml(q) + '">' + escapeHtml(q) + "</button>"; }).join("");
+    Array.prototype.forEach.call(el("starters").querySelectorAll("button"), function (b) {
+      b.addEventListener("click", function () { el("question").value = b.getAttribute("data-q"); ask(); });
+    });
+    if (who) el("question").setAttribute("placeholder", "Ask " + who.name + " about this chart…");
+  }
+
+  function currentAstrologer() {
+    for (var i = 0; i < state.astrologers.length; i++) if (state.astrologers[i].slug === state.who) return state.astrologers[i];
+    return null;
+  }
+
+  function renderThread(pending) {
+    var who = currentAstrologer();
+    var thread = (who && state.threads[who.slug]) || [];
+    if (!thread.length && !pending) {
+      el("log").innerHTML = '<div class="state">' + (who ? escapeHtml(who.name) + " is reading the chart above. Ask, or pick a starter." : "Pick a reader.") + "</div>";
+      return;
+    }
+    var html = thread.map(function (m) {
+      return '<div class="msg ' + (m.role === "user" ? "them" : "astro-reply") + '">' +
+        '<div class="who">' + escapeHtml(m.role === "user" ? "You" : (who ? who.name : "")) + "</div>" +
+        (m.role === "user" ? "<p>" + escapeHtml(m.text) + "</p>" : miniMarkdown(m.text)) + "</div>";
+    }).join("");
+    if (pending) {
+      html += '<div class="msg astro-reply"><div class="who">' + escapeHtml(who ? who.name : "") +
+        '</div><p><span class="spin"></span> reading&hellip;</p></div>';
+    }
+    el("log").innerHTML = html;
+    el("log").scrollTop = el("log").scrollHeight;
+  }
+
+  function ask() {
+    var who = currentAstrologer();
+    var q = el("question").value.trim();
+    if (!who || !q) return;
+    if (!state.spec) { el("log").innerHTML = '<div class="state">Cast a chart first — there is nothing to read.</div>'; return; }
+    var thread = state.threads[who.slug] || (state.threads[who.slug] = []);
+    thread.push({ role: "user", text: q });
+    el("question").value = "";
+    el("send").disabled = true;
+    renderThread(true);
+
+    var history = thread.slice(0, -1).map(function (m) { return { role: m.role, text: m.text }; });
+    gateway.astrology.askAstrologer({
+      chartSpec: state.spec, astrologer: who.slug, question: q, history: history
+    }).then(function (r) {
+      thread.push({ role: "assistant", text: r.answer });
+      if (r.caveats && r.caveats.length) {
+        thread.push({ role: "assistant", text: "**On this chart’s limits:** " + r.caveats.join(" ") });
+      }
+      el("send").disabled = false;
+      renderThread();
+    }).catch(function (e) {
+      el("send").disabled = false;
+      renderThread();
+      el("log").insertAdjacentHTML("beforeend", errorBox(who.name + " did not answer", e));
+      el("log").scrollTop = el("log").scrollHeight;
+    });
+  }
+
+  /* ── Wiring ────────────────────────────────────────────────────────────────────────────── */
+
+  function wire() {
+    el("birthForm").addEventListener("submit", function (ev) { ev.preventDefault(); cast(); });
+    el("findPlace").addEventListener("click", findPlace);
+    el("place").addEventListener("keydown", function (ev) {
+      if (ev.key === "Enter") { ev.preventDefault(); findPlace(); }
+    });
+    Array.prototype.forEach.call(el("tabs").querySelectorAll("button"), function (b) {
+      b.addEventListener("click", function () {
+        state.tab = b.getAttribute("data-tab");
+        Array.prototype.forEach.call(el("tabs").querySelectorAll("button"), function (x) {
+          x.setAttribute("aria-selected", x === b ? "true" : "false");
+        });
+        renderTab();
+      });
+    });
+    el("send").addEventListener("click", ask);
+    el("question").addEventListener("keydown", function (ev) {
+      if (ev.key === "Enter" && (ev.metaKey || ev.ctrlKey)) { ev.preventDefault(); ask(); }
+    });
+    el("howLink").addEventListener("click", function (ev) {
+      ev.preventDefault();
+      var how = el("how");
+      var open = how.getAttribute("data-open") === "true";
+      how.setAttribute("data-open", open ? "false" : "true");
+      el("howLink").textContent = open ? "How this works" : "Hide how this works";
+      if (!open) how.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
+
+  function start() {
+    wire();
+    try {
+      gateway.astrology.astrologers({}).then(function (list) {
+        state.astrologers = list || [];
+        if (state.astrologers.length && !state.who) state.who = state.astrologers[0].slug;
+        renderAstrologers();
+        renderThread();
+      }).catch(function (e) {
+        el("astrologers").innerHTML = errorBox("The readers", e);
+      });
+      cast();
+    } catch (e) {
+      el("summary").innerHTML = "";
+      el("caveats").innerHTML = errorBox("This page needs its world", e);
+    }
+  }
+
+  if (window.embabel && embabel.manifest && embabel.manifest.ready) {
+    embabel.manifest.ready.then(function (m) {
+      if (m && m.ok === false) {
+        var missing = (m.missing || []).join(", ");
+        el("summary").innerHTML = "";
+        el("caveats").innerHTML = '<div class="state bad"><strong>This world is missing what the page needs</strong><br>' +
+          escapeHtml(missing) + "<br>Install the astrology realm and reload.</div>";
+        return;
+      }
+      start();
+    }).catch(start);
+  } else {
+    start();
+  }
+})();
+</script>
+
+<div id="embabel-badge" style="position:fixed;bottom:0;left:0;right:0;text-align:center;padding:6px 0;background:rgba(10,10,15,0.9);border-top:1px solid rgba(99,192,245,0.2);font-size:0.75rem;color:#6b7280;z-index:9999;pointer-events:none;">
+  Created with <a href="https://worlds.embabel.com" target="_blank" rel="noopener noreferrer" style="color:#63c0f5;text-decoration:none;pointer-events:auto;">Embabel Worlds</a>
+</div>
+</body>
+</html>

@@ -20,15 +20,40 @@ import { BODIES } from "../src/lib/sky.js";
 const specOf = (b: { date: string; time: string; timezone: string; latitude: number; longitude: number }) =>
   `${b.date}T${b.time}|${b.latitude},${b.longitude}|${b.timezone}`;
 
-/* Horizons is paced, so the suite asks it in series and keeps the set of charts small. */
+/*
+ * Horizons is paced by its publisher and this battery asks it thirty times — ten bodies for each of
+ * three charts. Run flat out, the later requests are refused and the suite reports a position
+ * disagreement that is really a rate limit: the first version of this file did exactly that, passing
+ * each case alone and failing two of three together.
+ *
+ * So the requests are serialised through one queue with a gap between them, and a refusal is retried
+ * once before being reported AS a refusal. A rate limit must never read as a passing comparison, and
+ * it must never read as a wrong ephemeris either.
+ */
+const SPACING_MS = 1200;
+let lastCall = 0;
+
+async function paced<T>(f: () => Promise<T>): Promise<T> {
+  const wait = Math.max(0, lastCall + SPACING_MS - Date.now());
+  if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+  lastCall = Date.now();
+  return f();
+}
+
 async function horizons(body: string, at: Date): Promise<{ longitude: number; latitude: number } | null> {
   const args = horizonsArgs(body, at);
   const url = new URL("https://ssd.jpl.nasa.gov/api/horizons.api");
   for (const [k, v] of Object.entries(args)) url.searchParams.set(k, v);
-  const res = await fetch(url);
-  if (!res.ok) return null;
-  const body_ = (await res.json()) as { result?: string };
-  return body_.result ? parseHorizons(body_.result) : null;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const res = await paced(() => fetch(url));
+    if (res.ok) {
+      const payload = (await res.json()) as { result?: string };
+      return payload.result ? parseHorizons(payload.result) : null;
+    }
+    if (attempt === 0) await new Promise((r) => setTimeout(r, 5000));
+    else throw new Error(`Horizons refused ${body} with HTTP ${res.status} — paced out, not a disagreement.`);
+  }
+  return null;
 }
 
 describe("positions against NASA JPL Horizons", () => {
@@ -69,7 +94,7 @@ describe("positions against NASA JPL Horizons", () => {
         }
       }
       expect(disagreements, disagreements.join("; ")).toEqual([]);
-    }, 180_000);
+    }, 300_000);
   }
 });
 
@@ -138,5 +163,67 @@ describe("before standard time", () => {
   it("refuses a pre-1893 German birth cast in Berlin's zone, and says why", () => {
     expect(() => chartOf(parseMoment("1879-03-14T11:30|48.4,10.0|Europe/Berlin")))
       .toThrow(/Cannot cast/);
+  });
+});
+
+describe("what a reader is told", () => {
+  /*
+   * The house engine states its refusals and its degradation in Chinese. An earlier version of
+   * chart.ts passed those through verbatim, so a polar chart explained itself in a language the
+   * page could not render and the astrologers were handed it as a caveat. Every string this realm
+   * surfaces must be its own.
+   */
+  const CJK = /[　-鿿＀-￯]/;
+
+  it("explains a degraded house system in English, with the latitude", () => {
+    const chart = chartOf(parseMoment("1985-03-10T03:15|78.22,15.65|Arctic/Longyearbyen"));
+    expect(chart.houseSystem).toBe("whole-sign");
+    expect(chart.degradedReason).toBeTruthy();
+    expect(chart.degradedReason!).not.toMatch(CJK);
+    expect(chart.degradedReason!).toContain("78.22");
+    expect(chart.degradedReason!).toContain("Placidus");
+  });
+
+  it("explains a zone that contradicts the coordinates in English", () => {
+    try {
+      chartOf(parseMoment("1879-03-14T11:30|48.4,10.0|Europe/Berlin"));
+      throw new Error("expected a refusal");
+    } catch (e) {
+      const m = (e as Error).message;
+      expect(m).not.toMatch(CJK);
+      expect(m).toContain("Europe/Berlin");
+      expect(m).toContain("rising sign");
+    }
+  });
+
+  /*
+   * 02:30 on a US spring-forward morning: the clocks went 02:00 to 03:00, so no instant corresponds
+   * to this birth time. deepnatal's own fixtures do not cover a hole that THROWS — its one throwing
+   * fixture is the zone-versus-coordinates guard below — so the case is stated explicitly here.
+   */
+  it("explains a local time daylight saving skipped in English", () => {
+    try {
+      chartOf(parseMoment("2026-03-08T02:30|40.7128,-74.006|America/New_York"));
+      throw new Error("expected a refusal");
+    } catch (e) {
+      const m = (e as Error).message;
+      expect(m).not.toMatch(CJK);
+      expect(m).toContain("no such local time");
+      expect(m).toContain("America/New_York");
+    }
+  });
+
+  /* The zone guard, which IS a shipped fixture: Taipei's zone with New York's coordinates. */
+  it("explains a zone that cannot belong to those coordinates in English", () => {
+    const guard = FIXTURES.find((f) => f.expectThrows);
+    expect(guard).toBeDefined();
+    try {
+      chartOf(parseMoment(specOf(guard!.birth)));
+      throw new Error("expected a refusal");
+    } catch (e) {
+      const m = (e as Error).message;
+      expect(m).not.toMatch(CJK);
+      expect(m).toContain("disagrees with what the coordinates");
+    }
   });
 });

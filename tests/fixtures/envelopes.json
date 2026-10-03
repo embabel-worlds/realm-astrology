@@ -1,0 +1,1217 @@
+{
+ "CastChart": {
+  "executionId": "exec_c242e5ca-bb80-4bdd-a729-0f72f1ec936e",
+  "operationId": "CastChart",
+  "contractVersion": "1",
+  "status": "SUCCEEDED",
+  "outcome": "OK",
+  "outputType": "rows",
+  "data": [
+   {
+    "sun": "Taurus",
+    "moon": "Scorpio",
+    "rising": "Virgo",
+    "ascendant": "20\u00b056' Virgo",
+    "midheaven": "18\u00b010' Gemini",
+    "ascendantLongitude": 170.9346,
+    "midheavenLongitude": 78.1723,
+    "houseSystem": "placidus",
+    "moonPhase": "waxing gibbous",
+    "castForUtc": "1962-05-17T13:30:00.000Z",
+    "timeKnown": true,
+    "houseSystemDegraded": null,
+    "timeZoneDoubt": null,
+    "moonSignUncertain": false,
+    "enginesAgreeToArcmin": 0.311
+   }
+  ],
+  "warnings": [],
+  "error": null,
+  "metrics": {
+   "durationMs": 27,
+   "externalCalls": 0,
+   "cacheHit": true
+  }
+ },
+ "ChartPlacements": {
+  "executionId": "exec_17be6a09-4186-42e7-8061-174d32c9db91",
+  "operationId": "ChartPlacements",
+  "contractVersion": "1",
+  "status": "SUCCEEDED",
+  "outcome": "OK",
+  "outputType": "rows",
+  "data": [
+   {
+    "body": "Mars",
+    "position": "21\u00b023' Aries",
+    "sign": "Aries",
+    "house": 8,
+    "retrograde": false,
+    "degreesPerDay": 0.75817,
+    "longitude": 21.385473,
+    "degreeInSign": 21.3855
+   },
+   {
+    "body": "Sun",
+    "position": "26\u00b010' Taurus",
+    "sign": "Taurus",
+    "house": 9,
+    "retrograde": false,
+    "degreesPerDay": 0.96296,
+    "longitude": 56.159829,
+    "degreeInSign": 26.1598
+   },
+   {
+    "body": "Mercury",
+    "position": "17\u00b019' Gemini",
+    "sign": "Gemini",
+    "house": 9,
+    "retrograde": false,
+    "degreesPerDay": 0.69651,
+    "longitude": 77.320823,
+    "degreeInSign": 17.3208
+   },
+   {
+    "body": "Venus",
+    "position": "23\u00b018' Gemini",
+    "sign": "Gemini",
+    "house": 10,
+    "retrograde": false,
+    "degreesPerDay": 1.20869,
+    "longitude": 83.299717,
+    "degreeInSign": 23.2997
+   },
+   {
+    "body": "Uranus",
+    "position": "26\u00b028' Leo",
+    "sign": "Leo",
+    "house": 12,
+    "retrograde": false,
+    "degreesPerDay": 0.01181,
+    "longitude": 146.472287,
+    "degreeInSign": 26.4723
+   },
+   {
+    "body": "Pluto",
+    "position": "7\u00b031' Virgo",
+    "sign": "Virgo",
+    "house": 12,
+    "retrograde": true,
+    "degreesPerDay": -0.00094,
+    "longitude": 157.522053,
+    "degreeInSign": 7.5221
+   },
+   {
+    "body": "Moon",
+    "position": "2\u00b027' Scorpio",
+    "sign": "Scorpio",
+    "house": 2,
+    "retrograde": false,
+    "degreesPerDay": 12.33797,
+    "longitude": 212.455991,
+    "degreeInSign": 2.456
+   },
+   {
+    "body": "Neptune",
+    "position": "11\u00b044' Scorpio",
+    "sign": "Scorpio",
+    "house": 2,
+    "retrograde": true,
+    "degreesPerDay": -0.02617,
+    "longitude": 221.73192,
+    "degreeInSign": 11.7319
+   },
+   {
+    "body": "Saturn",
+    "position": "11\u00b023' Aquarius",
+    "sign": "Aquarius",
+    "house": 5,
+    "retrograde": false,
+    "degreesPerDay": 0.00713,
+    "longitude": 311.382596,
+    "degreeInSign": 11.3826
+   },
+   {
+    "body": "Jupiter",
+    "position": "9\u00b030' Pisces",
+    "sign": "Pisces",
+    "house": 6,
+    "retrograde": false,
+    "degreesPerDay": 0.13162,
+    "longitude": 339.502296,
+    "degreeInSign": 9.5023
+   }
+  ],
+  "warnings": [],
+  "error": null,
+  "metrics": {
+   "durationMs": 33,
+   "externalCalls": 0,
+   "cacheHit": true
+  }
+ },
+ "ChartHouses": {
+  "executionId": "exec_a4cdd8f7-66b3-4ed8-a4b2-5c167c172519",
+  "operationId": "ChartHouses",
+  "contractVersion": "1",
+  "status": "SUCCEEDED",
+  "outcome": "OK",
+  "outputType": "rows",
+  "data": [
+   {
+    "house": 1,
+    "cusp": "20\u00b056' Virgo",
+    "sign": "Virgo",
+    "spanDegrees": 22.754,
+    "longitude": 170.9346
+   },
+   {
+    "house": 2,
+    "cusp": "13\u00b041' Libra",
+    "sign": "Libra",
+    "spanDegrees": 29.1419,
+    "longitude": 193.6886
+   },
+   {
+    "house": 3,
+    "cusp": "12\u00b050' Scorpio",
+    "sign": "Scorpio",
+    "spanDegrees": 35.3418,
+    "longitude": 222.8305
+   },
+   {
+    "house": 4,
+    "cusp": "18\u00b010' Sagittarius",
+    "sign": "Sagittarius",
+    "spanDegrees": 36.4108,
+    "longitude": 258.1723
+   },
+   {
+    "house": 5,
+    "cusp": "24\u00b035' Capricorn",
+    "sign": "Capricorn",
+    "spanDegrees": 31.3538,
+    "longitude": 294.5831
+   },
+   {
+    "house": 6,
+    "cusp": "25\u00b056' Aquarius",
+    "sign": "Aquarius",
+    "spanDegrees": 24.9977,
+    "longitude": 325.9369
+   },
+   {
+    "house": 7,
+    "cusp": "20\u00b056' Pisces",
+    "sign": "Pisces",
+    "spanDegrees": 22.754,
+    "longitude": 350.9346
+   },
+   {
+    "house": 8,
+    "cusp": "13\u00b041' Aries",
+    "sign": "Aries",
+    "spanDegrees": 29.1419,
+    "longitude": 13.6886
+   },
+   {
+    "house": 9,
+    "cusp": "12\u00b050' Taurus",
+    "sign": "Taurus",
+    "spanDegrees": 35.3418,
+    "longitude": 42.8305
+   },
+   {
+    "house": 10,
+    "cusp": "18\u00b010' Gemini",
+    "sign": "Gemini",
+    "spanDegrees": 36.4108,
+    "longitude": 78.1723
+   },
+   {
+    "house": 11,
+    "cusp": "24\u00b035' Cancer",
+    "sign": "Cancer",
+    "spanDegrees": 31.3538,
+    "longitude": 114.5831
+   },
+   {
+    "house": 12,
+    "cusp": "25\u00b056' Leo",
+    "sign": "Leo",
+    "spanDegrees": 24.9977,
+    "longitude": 145.9369
+   }
+  ],
+  "warnings": [],
+  "error": null,
+  "metrics": {
+   "durationMs": 26,
+   "externalCalls": 0,
+   "cacheHit": true
+  }
+ },
+ "ChartAspects": {
+  "executionId": "exec_99bac45c-93e2-4c08-89ea-dc6f8066e154",
+  "operationId": "ChartAspects",
+  "contractVersion": "1",
+  "status": "SUCCEEDED",
+  "outcome": "OK",
+  "outputType": "rows",
+  "data": [
+   {
+    "from": "Sun",
+    "aspect": "square",
+    "to": "Uranus",
+    "orb": 0.312,
+    "applying": true,
+    "major": true,
+    "fromPosition": "26\u00b010' Taurus",
+    "toPosition": "26\u00b028' Leo"
+   },
+   {
+    "from": "Saturn",
+    "aspect": "square",
+    "to": "Neptune",
+    "orb": 0.349,
+    "applying": true,
+    "major": true,
+    "fromPosition": "11\u00b023' Aquarius",
+    "toPosition": "11\u00b044' Scorpio"
+   },
+   {
+    "from": "Mercury",
+    "aspect": "conjunction",
+    "to": "Midheaven",
+    "orb": 0.851,
+    "applying": null,
+    "major": true,
+    "fromPosition": "17\u00b019' Gemini",
+    "toPosition": "18\u00b010' Gemini"
+   },
+   {
+    "from": "Venus",
+    "aspect": "sextile",
+    "to": "Mars",
+    "orb": 1.914,
+    "applying": false,
+    "major": true,
+    "fromPosition": "23\u00b018' Gemini",
+    "toPosition": "21\u00b023' Aries"
+   },
+   {
+    "from": "Jupiter",
+    "aspect": "opposition",
+    "to": "Pluto",
+    "orb": 1.98,
+    "applying": false,
+    "major": true,
+    "fromPosition": "9\u00b030' Pisces",
+    "toPosition": "7\u00b031' Virgo"
+   },
+   {
+    "from": "Jupiter",
+    "aspect": "trine",
+    "to": "Neptune",
+    "orb": 2.23,
+    "applying": true,
+    "major": true,
+    "fromPosition": "9\u00b030' Pisces",
+    "toPosition": "11\u00b044' Scorpio"
+   },
+   {
+    "from": "Venus",
+    "aspect": "square",
+    "to": "Ascendant",
+    "orb": 2.365,
+    "applying": null,
+    "major": true,
+    "fromPosition": "23\u00b018' Gemini",
+    "toPosition": "20\u00b056' Virgo"
+   },
+   {
+    "from": "Venus",
+    "aspect": "sextile",
+    "to": "Uranus",
+    "orb": 3.173,
+    "applying": true,
+    "major": true,
+    "fromPosition": "23\u00b018' Gemini",
+    "toPosition": "26\u00b028' Leo"
+   },
+   {
+    "from": "Mars",
+    "aspect": "sextile",
+    "to": "Midheaven",
+    "orb": 3.213,
+    "applying": null,
+    "major": true,
+    "fromPosition": "21\u00b023' Aries",
+    "toPosition": "18\u00b010' Gemini"
+   },
+   {
+    "from": "Mercury",
+    "aspect": "square",
+    "to": "Ascendant",
+    "orb": 3.614,
+    "applying": null,
+    "major": true,
+    "fromPosition": "17\u00b019' Gemini",
+    "toPosition": "20\u00b056' Virgo"
+   },
+   {
+    "from": "Mercury",
+    "aspect": "sextile",
+    "to": "Mars",
+    "orb": 4.065,
+    "applying": false,
+    "major": true,
+    "fromPosition": "17\u00b019' Gemini",
+    "toPosition": "21\u00b023' Aries"
+   },
+   {
+    "from": "Neptune",
+    "aspect": "sextile",
+    "to": "Pluto",
+    "orb": 4.21,
+    "applying": true,
+    "major": true,
+    "fromPosition": "11\u00b044' Scorpio",
+    "toPosition": "7\u00b031' Virgo"
+   },
+   {
+    "from": "Moon",
+    "aspect": "sextile",
+    "to": "Pluto",
+    "orb": 5.066,
+    "applying": true,
+    "major": true,
+    "fromPosition": "2\u00b027' Scorpio",
+    "toPosition": "7\u00b031' Virgo"
+   },
+   {
+    "from": "Mars",
+    "aspect": "trine",
+    "to": "Uranus",
+    "orb": 5.087,
+    "applying": true,
+    "major": true,
+    "fromPosition": "21\u00b023' Aries",
+    "toPosition": "26\u00b028' Leo"
+   },
+   {
+    "from": "Venus",
+    "aspect": "conjunction",
+    "to": "Midheaven",
+    "orb": 5.127,
+    "applying": null,
+    "major": true,
+    "fromPosition": "23\u00b018' Gemini",
+    "toPosition": "18\u00b010' Gemini"
+   },
+   {
+    "from": "Sun",
+    "aspect": "trine",
+    "to": "Ascendant",
+    "orb": 5.225,
+    "applying": null,
+    "major": true,
+    "fromPosition": "26\u00b010' Taurus",
+    "toPosition": "20\u00b056' Virgo"
+   },
+   {
+    "from": "Mercury",
+    "aspect": "trine",
+    "to": "Saturn",
+    "orb": 5.938,
+    "applying": false,
+    "major": true,
+    "fromPosition": "17\u00b019' Gemini",
+    "toPosition": "11\u00b023' Aquarius"
+   },
+   {
+    "from": "Mercury",
+    "aspect": "conjunction",
+    "to": "Venus",
+    "orb": 5.979,
+    "applying": false,
+    "major": true,
+    "fromPosition": "17\u00b019' Gemini",
+    "toPosition": "23\u00b018' Gemini"
+   },
+   {
+    "from": "Moon",
+    "aspect": "sextile",
+    "to": "Uranus",
+    "orb": 5.984,
+    "applying": false,
+    "major": true,
+    "fromPosition": "2\u00b027' Scorpio",
+    "toPosition": "26\u00b028' Leo"
+   },
+   {
+    "from": "Saturn",
+    "aspect": "trine",
+    "to": "Midheaven",
+    "orb": 6.79,
+    "applying": null,
+    "major": true,
+    "fromPosition": "11\u00b023' Aquarius",
+    "toPosition": "18\u00b010' Gemini"
+   },
+   {
+    "from": "Moon",
+    "aspect": "trine",
+    "to": "Jupiter",
+    "orb": 7.046,
+    "applying": true,
+    "major": true,
+    "fromPosition": "2\u00b027' Scorpio",
+    "toPosition": "9\u00b030' Pisces"
+   }
+  ],
+  "warnings": [],
+  "error": null,
+  "metrics": {
+   "durationMs": 1703,
+   "externalCalls": 1,
+   "cacheHit": null
+  }
+ },
+ "TransitsOnDay": {
+  "executionId": "exec_042cf2c6-224b-4cb2-87cd-a858ec5dbba0",
+  "operationId": "TransitsOnDay",
+  "contractVersion": "1",
+  "status": "SUCCEEDED",
+  "outcome": "OK",
+  "outputType": "rows",
+  "data": [
+   {
+    "transiting": "Saturn",
+    "aspect": "sextile",
+    "natalPoint": "Saturn",
+    "orb": 0.003,
+    "applying": false,
+    "retrograde": true,
+    "crossingHouse": 7,
+    "transitingAt": "11\u00b023' Aries"
+   },
+   {
+    "transiting": "Moon",
+    "aspect": "trine",
+    "natalPoint": "Jupiter",
+    "orb": 0.018,
+    "applying": false,
+    "retrograde": false,
+    "crossingHouse": 10,
+    "transitingAt": "9\u00b031' Cancer"
+   },
+   {
+    "transiting": "Pluto",
+    "aspect": "square",
+    "natalPoint": "Moon",
+    "orb": 0.65,
+    "applying": true,
+    "retrograde": true,
+    "crossingHouse": 5,
+    "transitingAt": "3\u00b006' Aquarius"
+   },
+   {
+    "transiting": "Mars",
+    "aspect": "square",
+    "natalPoint": "Moon",
+    "orb": 0.683,
+    "applying": false,
+    "retrograde": false,
+    "crossingHouse": 11,
+    "transitingAt": "3\u00b008' Leo"
+   },
+   {
+    "transiting": "Venus",
+    "aspect": "sextile",
+    "natalPoint": "Pluto",
+    "orb": 0.964,
+    "applying": true,
+    "retrograde": true,
+    "crossingHouse": 2,
+    "transitingAt": "8\u00b029' Scorpio"
+   },
+   {
+    "transiting": "Venus",
+    "aspect": "trine",
+    "natalPoint": "Jupiter",
+    "orb": 1.016,
+    "applying": false,
+    "retrograde": true,
+    "crossingHouse": 2,
+    "transitingAt": "8\u00b029' Scorpio"
+   },
+   {
+    "transiting": "Sun",
+    "aspect": "trine",
+    "natalPoint": "Saturn",
+    "orb": 1.085,
+    "applying": true,
+    "retrograde": false,
+    "crossingHouse": 1,
+    "transitingAt": "10\u00b018' Libra"
+   },
+   {
+    "transiting": "Jupiter",
+    "aspect": "trine",
+    "natalPoint": "Mars",
+    "orb": 1.351,
+    "applying": true,
+    "retrograde": false,
+    "crossingHouse": 11,
+    "transitingAt": "20\u00b002' Leo"
+   },
+   {
+    "transiting": "Mercury",
+    "aspect": "conjunction",
+    "natalPoint": "Moon",
+    "orb": 1.467,
+    "applying": false,
+    "retrograde": false,
+    "crossingHouse": 2,
+    "transitingAt": "3\u00b055' Scorpio"
+   },
+   {
+    "transiting": "Jupiter",
+    "aspect": "sextile",
+    "natalPoint": "Midheaven",
+    "orb": 1.862,
+    "applying": false,
+    "retrograde": false,
+    "crossingHouse": 11,
+    "transitingAt": "20\u00b002' Leo"
+   },
+   {
+    "transiting": "Moon",
+    "aspect": "sextile",
+    "natalPoint": "Pluto",
+    "orb": 1.998,
+    "applying": false,
+    "retrograde": false,
+    "crossingHouse": 10,
+    "transitingAt": "9\u00b031' Cancer"
+   },
+   {
+    "transiting": "Uranus",
+    "aspect": "square",
+    "natalPoint": "Pluto",
+    "orb": 2.04,
+    "applying": false,
+    "retrograde": true,
+    "crossingHouse": 9,
+    "transitingAt": "5\u00b029' Gemini"
+   },
+   {
+    "transiting": "Moon",
+    "aspect": "trine",
+    "natalPoint": "Neptune",
+    "orb": 2.212,
+    "applying": true,
+    "retrograde": false,
+    "crossingHouse": 10,
+    "transitingAt": "9\u00b031' Cancer"
+   },
+   {
+    "transiting": "Jupiter",
+    "aspect": "sextile",
+    "natalPoint": "Mercury",
+    "orb": 2.713,
+    "applying": false,
+    "retrograde": false,
+    "crossingHouse": 11,
+    "transitingAt": "20\u00b002' Leo"
+   },
+   {
+    "transiting": "Venus",
+    "aspect": "square",
+    "natalPoint": "Saturn",
+    "orb": 2.897,
+    "applying": false,
+    "retrograde": true,
+    "crossingHouse": 2,
+    "transitingAt": "8\u00b029' Scorpio"
+   },
+   {
+    "transiting": "Venus",
+    "aspect": "conjunction",
+    "natalPoint": "Neptune",
+    "orb": 3.246,
+    "applying": false,
+    "retrograde": true,
+    "crossingHouse": 2,
+    "transitingAt": "8\u00b029' Scorpio"
+   },
+   {
+    "transiting": "Jupiter",
+    "aspect": "sextile",
+    "natalPoint": "Venus",
+    "orb": 3.266,
+    "applying": true,
+    "retrograde": false,
+    "crossingHouse": 11,
+    "transitingAt": "20\u00b002' Leo"
+   },
+   {
+    "transiting": "Mercury",
+    "aspect": "sextile",
+    "natalPoint": "Pluto",
+    "orb": 3.599,
+    "applying": true,
+    "retrograde": false,
+    "crossingHouse": 2,
+    "transitingAt": "3\u00b055' Scorpio"
+   },
+   {
+    "transiting": "Uranus",
+    "aspect": "square",
+    "natalPoint": "Jupiter",
+    "orb": 4.021,
+    "applying": false,
+    "retrograde": true,
+    "crossingHouse": 9,
+    "transitingAt": "5\u00b029' Gemini"
+   },
+   {
+    "transiting": "Mercury",
+    "aspect": "trine",
+    "natalPoint": "Jupiter",
+    "orb": 5.579,
+    "applying": true,
+    "retrograde": false,
+    "crossingHouse": 2,
+    "transitingAt": "3\u00b055' Scorpio"
+   },
+   {
+    "transiting": "Uranus",
+    "aspect": "trine",
+    "natalPoint": "Saturn",
+    "orb": 5.901,
+    "applying": false,
+    "retrograde": true,
+    "crossingHouse": 9,
+    "transitingAt": "5\u00b029' Gemini"
+   },
+   {
+    "transiting": "Venus",
+    "aspect": "conjunction",
+    "natalPoint": "Moon",
+    "orb": 6.03,
+    "applying": true,
+    "retrograde": true,
+    "crossingHouse": 2,
+    "transitingAt": "8\u00b029' Scorpio"
+   },
+   {
+    "transiting": "Jupiter",
+    "aspect": "square",
+    "natalPoint": "Sun",
+    "orb": 6.126,
+    "applying": true,
+    "retrograde": false,
+    "crossingHouse": 11,
+    "transitingAt": "20\u00b002' Leo"
+   },
+   {
+    "transiting": "Jupiter",
+    "aspect": "conjunction",
+    "natalPoint": "Uranus",
+    "orb": 6.438,
+    "applying": true,
+    "retrograde": false,
+    "crossingHouse": 11,
+    "transitingAt": "20\u00b002' Leo"
+   },
+   {
+    "transiting": "Neptune",
+    "aspect": "sextile",
+    "natalPoint": "Sun",
+    "orb": 6.637,
+    "applying": true,
+    "retrograde": true,
+    "crossingHouse": 7,
+    "transitingAt": "2\u00b048' Aries"
+   },
+   {
+    "transiting": "Pluto",
+    "aspect": "trine",
+    "natalPoint": "Sun",
+    "orb": 6.946,
+    "applying": true,
+    "retrograde": true,
+    "crossingHouse": 5,
+    "transitingAt": "3\u00b006' Aquarius"
+   },
+   {
+    "transiting": "Mars",
+    "aspect": "sextile",
+    "natalPoint": "Sun",
+    "orb": 6.979,
+    "applying": false,
+    "retrograde": false,
+    "crossingHouse": 11,
+    "transitingAt": "3\u00b008' Leo"
+   },
+   {
+    "transiting": "Sun",
+    "aspect": "trine",
+    "natalPoint": "Mercury",
+    "orb": 7.024,
+    "applying": true,
+    "retrograde": false,
+    "crossingHouse": 1,
+    "transitingAt": "10\u00b018' Libra"
+   },
+   {
+    "transiting": "Moon",
+    "aspect": "trine",
+    "natalPoint": "Moon",
+    "orb": 7.064,
+    "applying": false,
+    "retrograde": false,
+    "crossingHouse": 10,
+    "transitingAt": "9\u00b031' Cancer"
+   },
+   {
+    "transiting": "Mercury",
+    "aspect": "conjunction",
+    "natalPoint": "Neptune",
+    "orb": 7.809,
+    "applying": true,
+    "retrograde": false,
+    "crossingHouse": 2,
+    "transitingAt": "3\u00b055' Scorpio"
+   },
+   {
+    "transiting": "Sun",
+    "aspect": "trine",
+    "natalPoint": "Midheaven",
+    "orb": 7.875,
+    "applying": true,
+    "retrograde": false,
+    "crossingHouse": 1,
+    "transitingAt": "10\u00b018' Libra"
+   },
+   {
+    "transiting": "Uranus",
+    "aspect": "conjunction",
+    "natalPoint": "Sun",
+    "orb": 9.322,
+    "applying": true,
+    "retrograde": true,
+    "crossingHouse": 9,
+    "transitingAt": "5\u00b029' Gemini"
+   }
+  ],
+  "warnings": [],
+  "error": null,
+  "metrics": {
+   "durationMs": 1888,
+   "externalCalls": 1,
+   "cacheHit": null
+  }
+ },
+ "AuditAgainstNasa": {
+  "executionId": "exec_3e859f04-a69f-47ac-9cbd-e9f2543cb0b9",
+  "operationId": "AuditAgainstNasa",
+  "contractVersion": "1",
+  "status": "SUCCEEDED",
+  "outcome": "OK",
+  "outputType": "rows",
+  "data": [
+   {
+    "body": "Neptune",
+    "thisRealm": 221.73192,
+    "nasa": 221.735873,
+    "apartByArcsec": 14.23,
+    "withinTolerance": true,
+    "sameSign": true,
+    "note": null
+   },
+   {
+    "body": "Jupiter",
+    "thisRealm": 339.502296,
+    "nasa": 339.503695,
+    "apartByArcsec": 5.03,
+    "withinTolerance": true,
+    "sameSign": true,
+    "note": null
+   },
+   {
+    "body": "Mercury",
+    "thisRealm": 77.320823,
+    "nasa": 77.321601,
+    "apartByArcsec": 2.8,
+    "withinTolerance": true,
+    "sameSign": true,
+    "note": null
+   },
+   {
+    "body": "Pluto",
+    "thisRealm": 157.522053,
+    "nasa": 157.521571,
+    "apartByArcsec": 1.74,
+    "withinTolerance": true,
+    "sameSign": true,
+    "note": null
+   },
+   {
+    "body": "Sun",
+    "thisRealm": 56.159829,
+    "nasa": 56.160185,
+    "apartByArcsec": 1.28,
+    "withinTolerance": true,
+    "sameSign": true,
+    "note": null
+   },
+   {
+    "body": "Saturn",
+    "thisRealm": 311.382596,
+    "nasa": 311.382281,
+    "apartByArcsec": 1.13,
+    "withinTolerance": true,
+    "sameSign": true,
+    "note": null
+   },
+   {
+    "body": "Venus",
+    "thisRealm": 83.299717,
+    "nasa": 83.299415,
+    "apartByArcsec": 1.09,
+    "withinTolerance": true,
+    "sameSign": true,
+    "note": null
+   },
+   {
+    "body": "Moon",
+    "thisRealm": 212.455991,
+    "nasa": 212.455719,
+    "apartByArcsec": 0.98,
+    "withinTolerance": true,
+    "sameSign": true,
+    "note": null
+   },
+   {
+    "body": "Uranus",
+    "thisRealm": 146.472287,
+    "nasa": 146.472016,
+    "apartByArcsec": 0.98,
+    "withinTolerance": true,
+    "sameSign": true,
+    "note": null
+   },
+   {
+    "body": "Mars",
+    "thisRealm": 21.385473,
+    "nasa": 21.385657,
+    "apartByArcsec": 0.66,
+    "withinTolerance": true,
+    "sameSign": true,
+    "note": null
+   }
+  ],
+  "warnings": [],
+  "error": null,
+  "metrics": {
+   "durationMs": 6545,
+   "externalCalls": 1,
+   "cacheHit": null
+  }
+ },
+ "FindBirthplace": {
+  "executionId": "exec_77642a9e-626d-4622-b625-6d62dd933905",
+  "operationId": "FindBirthplace",
+  "contractVersion": "1",
+  "status": "SUCCEEDED",
+  "outcome": "OK",
+  "outputType": "rows",
+  "data": [
+   {
+    "place": "Hampton",
+    "region": "Victoria",
+    "country": "Australia",
+    "latitude": -37.95,
+    "longitude": 145.0,
+    "timeZone": "Australia/Melbourne",
+    "population": 13518
+   },
+   {
+    "place": "Sandringham",
+    "region": "Auckland",
+    "country": "New Zealand",
+    "latitude": -36.8882,
+    "longitude": 174.7302,
+    "timeZone": "Pacific/Auckland",
+    "population": 12930
+   },
+   {
+    "place": "Sandringham",
+    "region": "Victoria",
+    "country": "Australia",
+    "latitude": -37.95218,
+    "longitude": 145.01129,
+    "timeZone": "Australia/Melbourne",
+    "population": 10926
+   },
+   {
+    "place": "Sandringham",
+    "region": "New South Wales",
+    "country": "Australia",
+    "latitude": -33.99447,
+    "longitude": 151.13913,
+    "timeZone": "Australia/Sydney",
+    "population": 1237
+   },
+   {
+    "place": "Sandringham",
+    "region": "Newfoundland and Labrador",
+    "country": "Canada",
+    "latitude": 48.66661,
+    "longitude": -53.83139,
+    "timeZone": "America/St_Johns",
+    "population": 205
+   },
+   {
+    "place": "Sandringham Park",
+    "region": "Western Australia",
+    "country": "Australia",
+    "latitude": -32.22944,
+    "longitude": 115.8314,
+    "timeZone": "Australia/Perth",
+    "population": null
+   },
+   {
+    "place": "Sandringham",
+    "region": "Ontario",
+    "country": "Canada",
+    "latitude": 45.305,
+    "longitude": -74.93833,
+    "timeZone": "America/Toronto",
+    "population": null
+   },
+   {
+    "place": "Sandringham",
+    "region": "Gauteng",
+    "country": "South Africa",
+    "latitude": -26.14542,
+    "longitude": 28.11058,
+    "timeZone": "Africa/Johannesburg",
+    "population": null
+   },
+   {
+    "place": "Sandringham Bay Conservation Park",
+    "region": "Queensland",
+    "country": "Australia",
+    "latitude": -21.28944,
+    "longitude": 149.18695,
+    "timeZone": "Australia/Brisbane",
+    "population": null
+   },
+   {
+    "place": "Sandringham Airfield",
+    "region": "Queensland",
+    "country": "Australia",
+    "latitude": -24.05669,
+    "longitude": 139.0819,
+    "timeZone": "Australia/Brisbane",
+    "population": null
+   },
+   {
+    "place": "Sandringham",
+    "region": "England",
+    "country": "United Kingdom",
+    "latitude": 52.83094,
+    "longitude": 0.507,
+    "timeZone": "Europe/London",
+    "population": null
+   },
+   {
+    "place": "Sandringham",
+    "region": "Gauteng",
+    "country": "South Africa",
+    "latitude": -24.54006,
+    "longitude": 31.2063,
+    "timeZone": "Africa/Johannesburg",
+    "population": null
+   }
+  ],
+  "warnings": [],
+  "error": null,
+  "metrics": {
+   "durationMs": 2925,
+   "externalCalls": 1,
+   "cacheHit": null
+  }
+ },
+ "CastChart_noTime": {
+  "executionId": "exec_0413c591-297a-46e4-a6f9-178fc0963483",
+  "operationId": "CastChart",
+  "contractVersion": "1",
+  "status": "SUCCEEDED",
+  "outcome": "OK",
+  "outputType": "rows",
+  "data": [
+   {
+    "sun": "Taurus",
+    "moon": "Scorpio",
+    "rising": null,
+    "ascendant": null,
+    "midheaven": null,
+    "ascendantLongitude": null,
+    "midheavenLongitude": null,
+    "houseSystem": null,
+    "moonPhase": "waxing gibbous",
+    "castForUtc": "1962-05-17T11:00:00.000Z",
+    "timeKnown": false,
+    "houseSystemDegraded": null,
+    "timeZoneDoubt": null,
+    "moonSignUncertain": true,
+    "enginesAgreeToArcmin": 0.0
+   }
+  ],
+  "warnings": [],
+  "error": null,
+  "metrics": {
+   "durationMs": 1595,
+   "externalCalls": 1,
+   "cacheHit": null
+  }
+ },
+ "ChartPlacements_noTime": {
+  "executionId": "exec_f6829d97-ed06-4362-8e0b-9008a6218f35",
+  "operationId": "ChartPlacements",
+  "contractVersion": "1",
+  "status": "SUCCEEDED",
+  "outcome": "OK",
+  "outputType": "rows",
+  "data": [
+   {
+    "body": "Mars",
+    "position": "21\u00b018' Aries",
+    "sign": "Aries",
+    "house": null,
+    "retrograde": false,
+    "degreesPerDay": 0.75825,
+    "longitude": 21.306493,
+    "degreeInSign": 21.3065
+   },
+   {
+    "body": "Sun",
+    "position": "26\u00b004' Taurus",
+    "sign": "Taurus",
+    "house": null,
+    "retrograde": false,
+    "degreesPerDay": 0.963,
+    "longitude": 56.059519,
+    "degreeInSign": 26.0595
+   },
+   {
+    "body": "Mercury",
+    "position": "17\u00b015' Gemini",
+    "sign": "Gemini",
+    "house": null,
+    "retrograde": false,
+    "degreesPerDay": 0.7045,
+    "longitude": 77.247849,
+    "degreeInSign": 17.2478
+   },
+   {
+    "body": "Venus",
+    "position": "23\u00b010' Gemini",
+    "sign": "Gemini",
+    "house": null,
+    "retrograde": false,
+    "degreesPerDay": 1.20877,
+    "longitude": 83.173808,
+    "degreeInSign": 23.1738
+   },
+   {
+    "body": "Uranus",
+    "position": "26\u00b028' Leo",
+    "sign": "Leo",
+    "house": null,
+    "retrograde": false,
+    "degreesPerDay": 0.01172,
+    "longitude": 146.471062,
+    "degreeInSign": 26.4711
+   },
+   {
+    "body": "Pluto",
+    "position": "7\u00b031' Virgo",
+    "sign": "Virgo",
+    "house": null,
+    "retrograde": true,
+    "degreesPerDay": -0.00099,
+    "longitude": 157.522154,
+    "degreeInSign": 7.5222
+   },
+   {
+    "body": "Moon",
+    "position": "1\u00b010' Scorpio",
+    "sign": "Scorpio",
+    "house": null,
+    "retrograde": false,
+    "degreesPerDay": 12.31558,
+    "longitude": 211.171975,
+    "degreeInSign": 1.172
+   },
+   {
+    "body": "Neptune",
+    "position": "11\u00b044' Scorpio",
+    "sign": "Scorpio",
+    "house": null,
+    "retrograde": true,
+    "degreesPerDay": -0.02619,
+    "longitude": 221.734647,
+    "degreeInSign": 11.7346
+   },
+   {
+    "body": "Saturn",
+    "position": "11\u00b023' Aquarius",
+    "sign": "Aquarius",
+    "house": null,
+    "retrograde": false,
+    "degreesPerDay": 0.0073,
+    "longitude": 311.381844,
+    "degreeInSign": 11.3818
+   },
+   {
+    "body": "Jupiter",
+    "position": "9\u00b029' Pisces",
+    "sign": "Pisces",
+    "house": null,
+    "retrograde": false,
+    "degreesPerDay": 0.13186,
+    "longitude": 339.488573,
+    "degreeInSign": 9.4886
+   }
+  ],
+  "warnings": [],
+  "error": null,
+  "metrics": {
+   "durationMs": 1473,
+   "externalCalls": 1,
+   "cacheHit": null
+  }
+ },
+ "ChartHouses_noTime": {
+  "executionId": "exec_3c4265e2-f918-43fd-8230-e00f3749ce7c",
+  "operationId": "ChartHouses",
+  "contractVersion": "1",
+  "status": "SUCCEEDED",
+  "outcome": "EMPTY",
+  "outputType": "rows",
+  "data": [],
+  "warnings": [],
+  "error": null,
+  "metrics": {
+   "durationMs": 1437,
+   "externalCalls": 1,
+   "cacheHit": null
+  }
+ }
+}

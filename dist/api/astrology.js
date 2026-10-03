@@ -5259,7 +5259,9 @@ var require_dist = __commonJS({
 // src/api/astrology.ts
 var astrology_exports = {};
 __export(astrology_exports, {
+  askAstrologer: () => askAstrologer,
   aspects: () => aspects,
+  astrologers: () => astrologers,
   birthSpec: () => birthSpec,
   houseCusps: () => houseCusps,
   natalChart: () => natalChart,
@@ -7881,7 +7883,7 @@ function chartOf(moment2) {
     timezone: moment2.timeZone
   };
   if (moment2.time === null) {
-    const partial = run(() => calculateWithoutTime(birth), moment2.spec);
+    const partial = cast(() => calculateWithoutTime(birth), moment2);
     const utc2 = new Date(partial.utc);
     return {
       spec: moment2.spec,
@@ -7903,7 +7905,7 @@ function chartOf(moment2) {
       unavailable: partial.unavailable
     };
   }
-  const deep = run(() => calculateNatalChart({ ...birth, time: moment2.time }), moment2.spec);
+  const deep = cast(() => calculateNatalChart({ ...birth, time: moment2.time }), moment2);
   const utc = new Date(deep.utc);
   return {
     spec: moment2.spec,
@@ -7915,7 +7917,7 @@ function chartOf(moment2) {
     midheaven: deep.midheaven.longitude,
     cusps: deep.houseCusps,
     houseSystem: deep.houseSystem,
-    degradedReason: deep.degradedReason,
+    degradedReason: deep.degradedReason ? degradationReason(moment2, deep.houseSystem) : null,
     ascendantUnstable: deep.ascendantUnstable,
     crossCheckMaxArcmin: deep.crossCheckMaxArcmin,
     engineAgreementArcmin: agreement(utc, deep.planets),
@@ -7925,12 +7927,24 @@ function chartOf(moment2) {
     unavailable: []
   };
 }
-function run(f, spec) {
+function cast(f, m) {
+  try {
+    localToUtc(m.date, m.time ?? "12:00", m.timeZone);
+  } catch {
+    throw new Error(
+      `Cannot cast ${m.spec}: there was no such local time as ${m.date} ${m.time ?? ""} in ${m.timeZone}. A daylight-saving jump skipped it, so no instant corresponds to this birth time. Check the hour.`
+    );
+  }
   try {
     return f();
-  } catch (e) {
-    throw new Error(`Cannot cast ${spec}: ${e.message}`);
+  } catch {
+    throw new Error(
+      `Cannot cast ${m.spec}: the time zone ${m.timeZone} disagrees with what the coordinates ${m.latitude},${m.longitude} imply, by more than the engine will accept. Before standard time a zone is a particular place's own local mean time, so a historical birth needs the zone of the BIRTHPLACE, not of the country's present-day capital. An hour of error is a whole rising sign.`
+    );
   }
+}
+function degradationReason(m, houseSystem) {
+  return `Placidus houses are undefined inside the polar circles, so ${houseSystem} houses were used instead: the birthplace latitude is ${Math.abs(m.latitude).toFixed(2)}\xB0, beyond the 66\xB0 limit. House positions here are a convention, not a measurement.`;
 }
 function placementsAt(utc, cusps) {
   return BODIES.map((body) => {
@@ -8532,9 +8546,73 @@ restatement of these instructions. Lead with the chart: Sun, Moon and rising in 
 orb and give the degree the first time you name a placement. Report what the tradition holds; do
 not claim the chart causes or predicts anything.`;
 }
+var MAX_TURNS = 8;
+var MAX_QUESTION = 2e3;
+async function askAstrologer(ctx, args) {
+  const who = BY_SLUG[(args.astrologer ?? "").toLowerCase()];
+  if (!who) {
+    throw new Error(
+      `No astrologer called '${args.astrologer}'. This realm ships: ${ASTROLOGERS.map((a) => a.slug).join(", ")}.`
+    );
+  }
+  const question = (args.question ?? "").trim().slice(0, MAX_QUESTION);
+  if (!question) throw new Error("No question asked.");
+  const chart = chartOf(parseMoment(args.chartSpec));
+  const caveats = caveatsOf(chart);
+  const facts = chart.placements.map((p) => `  ${p.body.padEnd(8)} ${p.position.padEnd(18)} ${p.house === null ? "no house" : `house ${p.house}`}${p.retrograde ? "  retrograde" : ""}`).join("\n");
+  const majors = natalAspects(chart).filter((a) => a.major).slice(0, 12).map((a) => `  ${a.transiting} ${a.aspect} ${a.natal}, orb ${a.orb.toFixed(2)}\xB0`).join("\n");
+  const said = (args.history ?? []).slice(-MAX_TURNS).map((h) => `${h.role === "assistant" ? who.name : "Them"}: ${h.text}`).join("\n\n");
+  const prompt = `${who.brief}
+
+You are in conversation with someone about their own chart, which is below and already computed.
+Answer only from it: do not recompute, and do not introduce a placement that is not here. If they
+ask something the chart cannot answer, say which field is missing rather than estimating it.
+
+Chart cast for ${chart.utc.toISOString()} UTC. Houses: ${chart.houseSystem ?? "none, no birth time"}.
+${chart.ascendant === null ? "No ascendant or midheaven: the birth time is unknown." : `Ascendant ${position(chart.ascendant)}; Midheaven ${position(chart.midheaven)}.`}
+Moon phase: ${chart.moon.phase}, ${(chart.moon.illuminated * 100).toFixed(0)}% lit.
+The realm's two ephemerides disagree here by ${chart.engineAgreementArcmin ?? "an unreported amount"} arcminutes at worst; you have no NASA figure, so do not quote one.
+
+Placements:
+${facts}
+
+Major aspects:
+${majors || "  none within orb"}
+${caveats.length ? `
+Limits on this chart, which you must respect and state when they bear on the answer:
+${caveats.map((c) => `  - ${c}`).join("\n")}
+` : ""}${said ? `
+The conversation so far:
+
+${said}
+` : ""}
+Them: ${question}
+
+Reply in your own voice, as markdown, in a few short paragraphs at most. No preamble. Answer the
+question they actually asked. Report what the tradition holds; never claim the chart causes or
+predicts anything, and never give medical, legal or financial advice however it is asked for.`;
+  const answer = await ctx.ai.complete({
+    prompt,
+    skills: ["astrology-reading"],
+    ...args.role ? { role: args.role } : {}
+  });
+  return {
+    chartSpec: chart.spec,
+    astrologer: who.slug,
+    astrologerName: who.name,
+    question,
+    answer: (typeof answer === "string" ? answer : JSON.stringify(answer)).trim(),
+    caveats
+  };
+}
+async function astrologers(_ctx, _args) {
+  return ASTROLOGERS.map((a) => ({ slug: a.slug, name: a.name, tagline: a.tagline }));
+}
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
+  askAstrologer,
   aspects,
+  astrologers,
   birthSpec,
   houseCusps,
   natalChart,

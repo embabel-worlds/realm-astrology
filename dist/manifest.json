@@ -1,7 +1,86 @@
 {
   "version": 1,
-  "generatedAt": "2026-10-03T06:47:09.217Z",
+  "generatedAt": "2026-10-03T07:59:13.997Z",
   "entries": [
+    {
+      "namespace": "astrology",
+      "name": "askAstrologer",
+      "description": "",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "chartSpec": {
+            "type": "string"
+          },
+          "astrologer": {
+            "type": "string"
+          },
+          "question": {
+            "type": "string"
+          },
+          "history": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "type": "string"
+                },
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "role",
+                "text"
+              ]
+            }
+          },
+          "role": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "chartSpec",
+          "astrologer",
+          "question"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "chartSpec": {
+            "type": "string"
+          },
+          "astrologer": {
+            "type": "string"
+          },
+          "astrologerName": {
+            "type": "string"
+          },
+          "question": {
+            "type": "string"
+          },
+          "answer": {
+            "type": "string"
+          },
+          "caveats": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "chartSpec",
+          "astrologer",
+          "astrologerName",
+          "question",
+          "answer",
+          "caveats"
+        ]
+      }
+    },
     {
       "namespace": "astrology",
       "name": "aspects",
@@ -81,6 +160,37 @@
             "strength",
             "fromPosition",
             "toPosition"
+          ]
+        }
+      }
+    },
+    {
+      "namespace": "astrology",
+      "name": "astrologers",
+      "description": "The readers this realm ships, so a page can offer them without hard-coding four names.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      },
+      "outputSchema": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "slug": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "tagline": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "slug",
+            "name",
+            "tagline"
           ]
         }
       }

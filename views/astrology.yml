@@ -31,7 +31,11 @@
     bornAt:
       type: string
       default: "14:30"
-      description: "Local birth time, HH:mm, 24-hour. Empty when unknown."
+      description: "Local birth time, HH:mm, 24-hour. Ignored when `timeKnown` is false."
+    timeKnown:
+      type: boolean
+      default: true
+      description: "False when the birth time is NOT known. The chart then has no ascendant and no houses, and `bornAt` is ignored entirely. Do not signal an unknown time by sending an empty `bornAt`: a view parameter with a default substitutes it, which would silently cast a chart for the default hour."
     latitude:
       type: float
       default: 51.5074
@@ -45,11 +49,15 @@
       default: "Europe/London"
       description: "IANA zone of the BIRTHPLACE, e.g. Australia/Melbourne."
   cypher: |
-    WITH CASE WHEN $bornAt IS NULL OR $bornAt = '' THEN $bornOn ELSE $bornOn + 'T' + $bornAt END
+    WITH CASE WHEN $timeKnown THEN $bornOn + 'T' + $bornAt ELSE $bornOn END
          + '|' + toString($latitude) + ',' + toString($longitude) + '|' + $timeZone AS spec
     MATCH (b:BirthMoment {spec: spec})-[:HAS_CHART]->(c:NatalChart)
     RETURN c.sunSign AS sun, c.moonSign AS moon, c.risingSign AS rising,
            c.ascendant AS ascendant, c.midheaven AS midheaven,
+           // The raw longitudes as well as the readable form: a wheel places everything relative
+           // to the ascendant, and `20°56' Virgo` cannot be drawn with.
+           c.ascendantLongitude AS ascendantLongitude,
+           c.midheavenLongitude AS midheavenLongitude,
            c.houseSystem AS houseSystem, c.moonPhase AS moonPhase,
            c.utc AS castForUtc,
            c.timeKnown AS timeKnown,
@@ -62,23 +70,33 @@
   description: Every body in a chart — sign, exact degree, house and retrograde — in zodiacal order. The degree is what lets you check this against any other tool.
   params:
     bornOn: { type: string, default: "1962-05-17", description: "Local birth date, YYYY-MM-DD." }
-    bornAt: { type: string, default: "14:30", description: "Local birth time, HH:mm. Empty when unknown." }
+    bornAt: { type: string, default: "14:30", description: "Local birth time, HH:mm. Ignored when `timeKnown` is false." }
+    timeKnown:
+      type: boolean
+      default: true
+      description: "False when the birth time is NOT known. The chart then has no ascendant and no houses, and `bornAt` is ignored entirely. Do not signal an unknown time by sending an empty `bornAt`: a view parameter with a default substitutes it, which would silently cast a chart for the default hour."
     latitude: { type: float, default: 51.5074, description: "Birthplace latitude." }
     longitude: { type: float, default: -0.1278, description: "Birthplace longitude." }
     timeZone: { type: string, default: "Europe/London", description: "IANA zone of the birthplace." }
   cypher: |
-    WITH CASE WHEN $bornAt IS NULL OR $bornAt = '' THEN $bornOn ELSE $bornOn + 'T' + $bornAt END
+    WITH CASE WHEN $timeKnown THEN $bornOn + 'T' + $bornAt ELSE $bornOn END
          + '|' + toString($latitude) + ',' + toString($longitude) + '|' + $timeZone AS spec
     MATCH (b:BirthMoment {spec: spec})-[:HAS_PLACEMENT]->(p:Placement)
     RETURN p.body AS body, p.position AS position, p.sign AS sign,
-           p.house AS house, p.retrograde AS retrograde, p.dailyMotion AS degreesPerDay
+           p.house AS house, p.retrograde AS retrograde, p.dailyMotion AS degreesPerDay,
+           // Needed to DRAW the body, as distinct from naming where it is.
+           p.longitude AS longitude, p.degreeInSign AS degreeInSign
     ORDER BY p.longitude
 
 - name: ChartAspects
   description: The aspects in a chart, tightest first — the configurations that actually dominate it. Majors only by default; the orb says how much weight each carries.
   params:
     bornOn: { type: string, default: "1962-05-17", description: "Local birth date, YYYY-MM-DD." }
-    bornAt: { type: string, default: "14:30", description: "Local birth time, HH:mm. Empty when unknown." }
+    bornAt: { type: string, default: "14:30", description: "Local birth time, HH:mm. Ignored when `timeKnown` is false." }
+    timeKnown:
+      type: boolean
+      default: true
+      description: "False when the birth time is NOT known. The chart then has no ascendant and no houses, and `bornAt` is ignored entirely. Do not signal an unknown time by sending an empty `bornAt`: a view parameter with a default substitutes it, which would silently cast a chart for the default hour."
     latitude: { type: float, default: 51.5074, description: "Birthplace latitude." }
     longitude: { type: float, default: -0.1278, description: "Birthplace longitude." }
     timeZone: { type: string, default: "Europe/London", description: "IANA zone of the birthplace." }
@@ -91,7 +109,7 @@
       default: 8.0
       description: "Widest orb to include, degrees."
   cypher: |
-    WITH CASE WHEN $bornAt IS NULL OR $bornAt = '' THEN $bornOn ELSE $bornOn + 'T' + $bornAt END
+    WITH CASE WHEN $timeKnown THEN $bornOn + 'T' + $bornAt ELSE $bornOn END
          + '|' + toString($latitude) + ',' + toString($longitude) + '|' + $timeZone AS spec
     MATCH (b:BirthMoment {spec: spec})-[:HAS_ASPECT]->(a:ChartAspect)
     WHERE a.orb <= $maxOrb AND (NOT $majorsOnly OR a.major)
@@ -104,20 +122,32 @@
   description: The twelve house cusps and how wide each house is. Placidus houses are unequal, and a very wide house is something a chart wheel hides and a number does not.
   params:
     bornOn: { type: string, default: "1962-05-17", description: "Local birth date, YYYY-MM-DD." }
-    bornAt: { type: string, default: "14:30", description: "Local birth time, HH:mm." }
+    bornAt: { type: string, default: "14:30", description: "Local birth time, HH:mm. Ignored when `timeKnown` is false." }
+    timeKnown:
+      type: boolean
+      default: true
+      description: "False when the birth time is NOT known. The chart then has no ascendant and no houses, and `bornAt` is ignored entirely. Do not signal an unknown time by sending an empty `bornAt`: a view parameter with a default substitutes it, which would silently cast a chart for the default hour."
     latitude: { type: float, default: 51.5074, description: "Birthplace latitude." }
     longitude: { type: float, default: -0.1278, description: "Birthplace longitude." }
     timeZone: { type: string, default: "Europe/London", description: "IANA zone of the birthplace." }
   cypher: |
-    MATCH (b:BirthMoment {spec: $bornOn + 'T' + $bornAt + '|' + toString($latitude) + ',' + toString($longitude) + '|' + $timeZone})-[:HAS_CUSP]->(h:HouseCusp)
-    RETURN h.house AS house, h.position AS cusp, h.sign AS sign, h.span AS spanDegrees
+    WITH CASE WHEN $timeKnown THEN $bornOn + 'T' + $bornAt ELSE $bornOn END
+         + '|' + toString($latitude) + ',' + toString($longitude) + '|' + $timeZone AS spec
+    MATCH (b:BirthMoment {spec: spec})-[:HAS_CUSP]->(h:HouseCusp)
+    RETURN h.house AS house, h.position AS cusp, h.sign AS sign, h.span AS spanDegrees,
+           // The spoke's angle: a wheel needs the number, not the readable cusp.
+           h.longitude AS longitude
     ORDER BY h.house
 
 - name: TransitsOnDay
   description: What the sky is doing to a chart on one day, tightest orb first. The slow bodies — Saturn outward — are the ones worth reading; a Moon transit lasts hours.
   params:
     bornOn: { type: string, default: "1962-05-17", description: "Local birth date, YYYY-MM-DD." }
-    bornAt: { type: string, default: "14:30", description: "Local birth time, HH:mm. Empty when unknown." }
+    bornAt: { type: string, default: "14:30", description: "Local birth time, HH:mm. Ignored when `timeKnown` is false." }
+    timeKnown:
+      type: boolean
+      default: true
+      description: "False when the birth time is NOT known. The chart then has no ascendant and no houses, and `bornAt` is ignored entirely. Do not signal an unknown time by sending an empty `bornAt`: a view parameter with a default substitutes it, which would silently cast a chart for the default hour."
     latitude: { type: float, default: 51.5074, description: "Birthplace latitude." }
     longitude: { type: float, default: -0.1278, description: "Birthplace longitude." }
     timeZone: { type: string, default: "Europe/London", description: "IANA zone of the birthplace." }
@@ -130,7 +160,7 @@
       default: false
       description: "True to drop the Moon, Mercury, Venus, Sun and Mars and keep only the transits that last months."
   cypher: |
-    WITH CASE WHEN $bornAt IS NULL OR $bornAt = '' THEN $bornOn ELSE $bornOn + 'T' + $bornAt END
+    WITH CASE WHEN $timeKnown THEN $bornOn + 'T' + $bornAt ELSE $bornOn END
          + '|' + toString($latitude) + ',' + toString($longitude) + '|' + $timeZone AS spec
     MATCH (d:TransitDay {spec: spec + '@' + $on})-[:HAS_TRANSIT]->(t:Transit)
     WHERE t.major AND (NOT $slowOnly OR t.transiting IN ['Jupiter','Saturn','Uranus','Neptune','Pluto'])
@@ -158,12 +188,18 @@
   description: This realm's own arithmetic, checked live against NASA JPL Horizons, body by body, in arcseconds. Ten requests against a paced source, cached for a year afterwards. Filter to one body and it asks for one.
   params:
     bornOn: { type: string, default: "1962-05-17", description: "Local birth date, YYYY-MM-DD." }
-    bornAt: { type: string, default: "14:30", description: "Local birth time, HH:mm." }
+    bornAt: { type: string, default: "14:30", description: "Local birth time, HH:mm. Ignored when `timeKnown` is false." }
+    timeKnown:
+      type: boolean
+      default: true
+      description: "False when the birth time is NOT known. The chart then has no ascendant and no houses, and `bornAt` is ignored entirely. Do not signal an unknown time by sending an empty `bornAt`: a view parameter with a default substitutes it, which would silently cast a chart for the default hour."
     latitude: { type: float, default: 51.5074, description: "Birthplace latitude." }
     longitude: { type: float, default: -0.1278, description: "Birthplace longitude." }
     timeZone: { type: string, default: "Europe/London", description: "IANA zone of the birthplace." }
   cypher: |
-    MATCH (b:BirthMoment {spec: $bornOn + 'T' + $bornAt + '|' + toString($latitude) + ',' + toString($longitude) + '|' + $timeZone})-[:VERIFIED_BY]->(c:NasaCheck)
+    WITH CASE WHEN $timeKnown THEN $bornOn + 'T' + $bornAt ELSE $bornOn END
+         + '|' + toString($latitude) + ',' + toString($longitude) + '|' + $timeZone AS spec
+    MATCH (b:BirthMoment {spec: spec})-[:VERIFIED_BY]->(c:NasaCheck)
     RETURN c.body AS body, c.ourLongitude AS thisRealm, c.nasaLongitude AS nasa,
            c.agreementArcsec AS apartByArcsec, c.agrees AS withinTolerance,
            c.sameSign AS sameSign, c.note AS note
@@ -173,7 +209,11 @@
   description: One astrologer's reading of a chart. Readers are `hypatia` (Hellenistic traditionalist), `juno` (psychological), `mercer` (the daily column) and `cassius` (an astronomer, exact about what the chart does not show). Scope is `natal` or a date for that day's sky.
   params:
     bornOn: { type: string, default: "1962-05-17", description: "Local birth date, YYYY-MM-DD." }
-    bornAt: { type: string, default: "14:30", description: "Local birth time, HH:mm. Empty when unknown." }
+    bornAt: { type: string, default: "14:30", description: "Local birth time, HH:mm. Ignored when `timeKnown` is false." }
+    timeKnown:
+      type: boolean
+      default: true
+      description: "False when the birth time is NOT known. The chart then has no ascendant and no houses, and `bornAt` is ignored entirely. Do not signal an unknown time by sending an empty `bornAt`: a view parameter with a default substitutes it, which would silently cast a chart for the default hour."
     latitude: { type: float, default: 51.5074, description: "Birthplace latitude." }
     longitude: { type: float, default: -0.1278, description: "Birthplace longitude." }
     timeZone: { type: string, default: "Europe/London", description: "IANA zone of the birthplace." }
@@ -186,7 +226,7 @@
       default: "natal"
       description: "`natal`, or a date as YYYY-MM-DD to read that day's sky against the chart."
   cypher: |
-    WITH CASE WHEN $bornAt IS NULL OR $bornAt = '' THEN $bornOn ELSE $bornOn + 'T' + $bornAt END
+    WITH CASE WHEN $timeKnown THEN $bornOn + 'T' + $bornAt ELSE $bornOn END
          + '|' + toString($latitude) + ',' + toString($longitude) + '|' + $timeZone AS spec
     MATCH (q:ReadingRequest {spec: spec + '#' + $astrologer + '#' + $scope})-[:HAS_READING]->(r:Reading)
     RETURN r.astrologerName AS astrologer, r.tagline AS stance,
@@ -197,7 +237,11 @@
   description: The same chart read by all four astrologers, side by side, in one query. They are meant to disagree — a traditionalist, a psychological reader, a columnist and an astronomer looking at one figure. Four model calls, so it is not instant.
   params:
     bornOn: { type: string, default: "1962-05-17", description: "Local birth date, YYYY-MM-DD." }
-    bornAt: { type: string, default: "14:30", description: "Local birth time, HH:mm. Empty when unknown." }
+    bornAt: { type: string, default: "14:30", description: "Local birth time, HH:mm. Ignored when `timeKnown` is false." }
+    timeKnown:
+      type: boolean
+      default: true
+      description: "False when the birth time is NOT known. The chart then has no ascendant and no houses, and `bornAt` is ignored entirely. Do not signal an unknown time by sending an empty `bornAt`: a view parameter with a default substitutes it, which would silently cast a chart for the default hour."
     latitude: { type: float, default: 51.5074, description: "Birthplace latitude." }
     longitude: { type: float, default: -0.1278, description: "Birthplace longitude." }
     timeZone: { type: string, default: "Europe/London", description: "IANA zone of the birthplace." }
@@ -206,7 +250,7 @@
       default: "natal"
       description: "`natal`, or a date as YYYY-MM-DD."
   cypher: |
-    WITH CASE WHEN $bornAt IS NULL OR $bornAt = '' THEN $bornOn ELSE $bornOn + 'T' + $bornAt END
+    WITH CASE WHEN $timeKnown THEN $bornOn + 'T' + $bornAt ELSE $bornOn END
          + '|' + toString($latitude) + ',' + toString($longitude) + '|' + $timeZone AS spec
     UNWIND ['hypatia','juno','mercer','cassius'] AS who
     MATCH (q:ReadingRequest {spec: spec + '#' + who + '#' + $scope})-[:HAS_READING]->(r:Reading)
