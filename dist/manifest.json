@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-10-03T08:03:57.068Z",
+  "generatedAt": "2026-10-03T08:16:44.330Z",
   "entries": [
     {
       "namespace": "astrology",
@@ -35,6 +35,9 @@
                 "text"
               ]
             }
+          },
+          "on": {
+            "type": "string"
           },
           "role": {
             "type": "string"

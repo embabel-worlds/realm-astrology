@@ -225,6 +225,8 @@ test("each astrologer keeps their own thread, and the chart is passed to them", 
   expect(asked[0].astrologer).toBe("hypatia");
   /* Grounded: the reader is handed the key of the chart on screen. */
   expect(asked[0].chartSpec).toBe("1962-05-17T14:30|51.5074,-0.1278|Europe/London");
+  /* And the day, so a question about today has transits behind it rather than the natal chart alone. */
+  expect(asked[0].on).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   expect(errors).toEqual([]);
 });
 

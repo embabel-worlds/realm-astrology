@@ -16,6 +16,7 @@ import { chartOf } from "../src/lib/chart.js";
 import { parseMoment, position } from "../src/lib/spec.js";
 import { arcseconds, horizonsArgs, parseHorizons } from "../src/lib/horizons.js";
 import { BODIES } from "../src/lib/sky.js";
+import { conditionTable, dignityOf, sectOf } from "../src/lib/dignity.js";
 
 const specOf = (b: { date: string; time: string; timezone: string; latitude: number; longitude: number }) =>
   `${b.date}T${b.time}|${b.latitude},${b.longitude}|${b.timezone}`;
@@ -225,5 +226,106 @@ describe("what a reader is told", () => {
       expect(m).not.toMatch(CJK);
       expect(m).toContain("disagrees with what the coordinates");
     }
+  });
+});
+
+describe("dignity and sect are computed, not recalled", () => {
+  /*
+   * Every case here is an error a live reading actually made, in one answer: Saturn in Taurus called
+   * "in domicile", Jupiter in Libra "its domicile", Mercury in Cancer "its own domicile", and Mars in
+   * Cancer "domiciled ... (its fall)". The table is now in the realm and goes into the prompt as a
+   * column; these assertions are what stop it drifting back.
+   */
+  it("gets the four dignities the model got wrong", () => {
+    expect(dignityOf("Saturn", "Taurus")).toBe("peregrine");
+    expect(dignityOf("Jupiter", "Libra")).toBe("peregrine");
+    expect(dignityOf("Mercury", "Cancer")).toBe("peregrine");
+    expect(dignityOf("Mars", "Cancer")).toBe("fall");
+  });
+
+  it("knows each classical planet's own signs", () => {
+    expect(dignityOf("Saturn", "Capricorn")).toBe("domicile");
+    expect(dignityOf("Saturn", "Aquarius")).toBe("domicile");
+    expect(dignityOf("Jupiter", "Sagittarius")).toBe("domicile");
+    expect(dignityOf("Jupiter", "Pisces")).toBe("domicile");
+    expect(dignityOf("Mercury", "Gemini")).toBe("domicile");
+    expect(dignityOf("Mercury", "Virgo")).toBe("domicile");
+    expect(dignityOf("Mars", "Aries")).toBe("domicile");
+    expect(dignityOf("Venus", "Libra")).toBe("domicile");
+    expect(dignityOf("Sun", "Leo")).toBe("domicile");
+    expect(dignityOf("Moon", "Cancer")).toBe("domicile");
+  });
+
+  it("separates exaltation, detriment and fall", () => {
+    expect(dignityOf("Sun", "Aries")).toBe("exaltation");
+    expect(dignityOf("Sun", "Libra")).toBe("fall");
+    expect(dignityOf("Sun", "Aquarius")).toBe("detriment");
+    expect(dignityOf("Saturn", "Libra")).toBe("exaltation");
+    expect(dignityOf("Mars", "Capricorn")).toBe("exaltation");
+    expect(dignityOf("Moon", "Scorpio")).toBe("fall");
+  });
+
+  it("gives the moderns no traditional dignity, in any sign", () => {
+    for (const body of ["Uranus", "Neptune", "Pluto"]) {
+      for (const sign of ["Aries", "Taurus", "Scorpio", "Aquarius", "Pisces"]) {
+        expect(dignityOf(body, sign)).toContain("modern");
+      }
+    }
+  });
+
+  it("reads the Sun in the twelfth as ABOVE the horizon, so a day chart", () => {
+    /*
+     * The twelfth house sits immediately above the ascendant. A live reading called a Sun there
+     * "below the horizon", declared a night chart, and inverted every benefic and malefic from it.
+     */
+    const chart = chartOf(parseMoment("1962-05-17T14:30|51.5074,-0.1278|Europe/London"));
+    const sun = chart.placements.find((p) => p.body === "Sun")!;
+    expect(sun.house).toBeGreaterThanOrEqual(7);
+    const s = sectOf(chart);
+    expect(s.kind).toBe("day");
+    expect(s.sectLight).toBe("Sun");
+    expect(s.beneficOfSect).toBe("Jupiter");
+    expect(s.maleficContrary).toBe("Mars");
+    expect(s.why).toContain("above the horizon");
+  });
+
+  it("assigns the night roles the other way round", () => {
+    /* A birth near midnight puts the Sun below the horizon. */
+    const chart = chartOf(parseMoment("1962-05-17T01:00|51.5074,-0.1278|Europe/London"));
+    const sun = chart.placements.find((p) => p.body === "Sun")!;
+    expect(sun.house).toBeLessThanOrEqual(6);
+    const s = sectOf(chart);
+    expect(s.kind).toBe("night");
+    expect(s.sectLight).toBe("Moon");
+    expect(s.beneficOfSect).toBe("Venus");
+    expect(s.maleficOfSect).toBe("Mars");
+    expect(s.maleficContrary).toBe("Saturn");
+  });
+
+  it("there is ALWAYS a malefic contrary to sect when sect is known", () => {
+    for (const time of ["01:00", "06:00", "09:00", "14:30", "19:00", "23:30"]) {
+      const s = sectOf(chartOf(parseMoment(`1962-05-17T${time}|51.5074,-0.1278|Europe/London`)));
+      expect(s.known).toBe(true);
+      expect(["Mars", "Saturn"]).toContain(s.maleficContrary);
+    }
+  });
+
+  it("refuses to state sect at all without a birth time", () => {
+    const s = sectOf(chartOf(parseMoment("1962-05-17|51.5074,-0.1278|Europe/London")));
+    expect(s.known).toBe(false);
+    expect(s.kind).toBe("unknown");
+    expect(s.maleficContrary).toBeNull();
+    expect(s.beneficOfSect).toBeNull();
+    expect(s.why).toContain("cannot be determined");
+  });
+
+  it("the condition table carries a dignity for every body", () => {
+    const chart = chartOf(parseMoment("1962-05-17T14:30|51.5074,-0.1278|Europe/London"));
+    const table = conditionTable(chart);
+    for (const body of BODIES) expect(table).toContain(body);
+    /* Mars at 21 Aries is in its own sign; the table must say so rather than leave it blank. */
+    const mars = table.split("\n").find((l) => l.includes("Mars"))!;
+    expect(mars).toContain("domicile");
+    expect(mars).toMatch(/angular|succedent|cadent/);
   });
 });

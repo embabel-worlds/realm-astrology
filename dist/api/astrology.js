@@ -8176,7 +8176,11 @@ no traditional dignity and you do not pretend otherwise \u2014 you may note them
 
 Your register is technical and unapologetic: domicile, detriment, exaltation, fall, angular,
 succedent, cadent. Never "challenging", never "growth", never "energy". Where the authorities
-differ, name the difference. Austere, never cruel, never dramatising.`
+differ, name the difference. Austere, never cruel, never dramatising.
+
+END WITH THE JUDGEMENT, in plain words, in two or three sentences: what this comes to for the person
+reading it. The technical vocabulary is how you REACH a judgement, not a substitute for stating one.
+Austere does not mean obscure, and a reading nobody can act on is a lecture.`
   },
   {
     slug: "juno",
@@ -8235,6 +8239,90 @@ Name what would change your mind.`
   }
 ];
 var BY_SLUG = Object.fromEntries(ASTROLOGERS.map((a) => [a.slug, a]));
+
+// src/lib/dignity.ts
+var RULERSHIP = {
+  Sun: { domicile: ["Leo"], detriment: ["Aquarius"], exaltation: "Aries", fall: "Libra" },
+  Moon: { domicile: ["Cancer"], detriment: ["Capricorn"], exaltation: "Taurus", fall: "Scorpio" },
+  Mercury: { domicile: ["Gemini", "Virgo"], detriment: ["Sagittarius", "Pisces"], exaltation: "Virgo", fall: "Pisces" },
+  Venus: { domicile: ["Taurus", "Libra"], detriment: ["Aries", "Scorpio"], exaltation: "Pisces", fall: "Virgo" },
+  Mars: { domicile: ["Aries", "Scorpio"], detriment: ["Libra", "Taurus"], exaltation: "Capricorn", fall: "Cancer" },
+  Jupiter: { domicile: ["Sagittarius", "Pisces"], detriment: ["Gemini", "Virgo"], exaltation: "Cancer", fall: "Capricorn" },
+  Saturn: { domicile: ["Capricorn", "Aquarius"], detriment: ["Cancer", "Leo"], exaltation: "Libra", fall: "Aries" }
+};
+function dignityOf(body, sign) {
+  const r = RULERSHIP[body];
+  if (!r) return "modern (no traditional dignity)";
+  if (r.domicile.includes(sign)) return "domicile";
+  if (r.exaltation === sign) return "exaltation";
+  if (r.detriment.includes(sign)) return "detriment";
+  if (r.fall === sign) return "fall";
+  return "peregrine";
+}
+function angularityOf(house) {
+  if (house === null) return "no house";
+  if ([1, 4, 7, 10].includes(house)) return "angular";
+  if ([2, 5, 8, 11].includes(house)) return "succedent";
+  return "cadent";
+}
+function sectOf(chart) {
+  const sun = chart.placements.find((p) => p.body === "Sun");
+  if (!chart.timeKnown || !sun || sun.house === null) {
+    return {
+      known: false,
+      kind: "unknown",
+      sectLight: null,
+      beneficOfSect: null,
+      beneficContrary: null,
+      maleficOfSect: null,
+      maleficContrary: null,
+      why: "The birth time is unknown, so there are no houses and sect cannot be determined. Every benefic and malefic of sect depends on it, so none is stated."
+    };
+  }
+  const day = sun.house >= 7 && sun.house <= 12;
+  return day ? {
+    known: true,
+    kind: "day",
+    sectLight: "Sun",
+    beneficOfSect: "Jupiter",
+    beneficContrary: "Venus",
+    maleficOfSect: "Saturn",
+    maleficContrary: "Mars",
+    why: `The Sun is in house ${sun.house}, above the horizon (houses 7 to 12 are the half above it), so this is a DAY chart.`
+  } : {
+    known: true,
+    kind: "night",
+    sectLight: "Moon",
+    beneficOfSect: "Venus",
+    beneficContrary: "Jupiter",
+    maleficOfSect: "Mars",
+    maleficContrary: "Saturn",
+    why: `The Sun is in house ${sun.house}, below the horizon (houses 1 to 6 are the half below it), so this is a NIGHT chart.`
+  };
+}
+function conditionTable(chart) {
+  return chart.placements.map((p) => {
+    const parts = [
+      p.body.padEnd(8),
+      p.position.padEnd(18),
+      (p.house === null ? "no house" : `house ${p.house}`).padEnd(9),
+      angularityOf(p.house).padEnd(10),
+      dignityOf(p.body, p.sign)
+    ];
+    return "  " + parts.join(" ") + (p.retrograde ? "  retrograde" : "");
+  }).join("\n");
+}
+function sectBlock(s) {
+  if (!s.known) return s.why;
+  return [
+    s.why,
+    `  sect light              ${s.sectLight}`,
+    `  benefic of sect         ${s.beneficOfSect}`,
+    `  benefic contrary        ${s.beneficContrary}`,
+    `  malefic of sect         ${s.maleficOfSect}`,
+    `  malefic contrary to sect ${s.maleficContrary}   <- the hardest placement in traditional practice`
+  ].join("\n");
+}
 
 // src/api/astrology.ts
 var chartsFor = (specs) => (specs ?? []).map((s) => chartOf(parseMoment(s)));
@@ -8504,10 +8592,9 @@ function caveatsOf(chart) {
   return out;
 }
 function readingPrompt(who, chart, caveats, key, moving) {
-  const placements2 = chart.placements.map((p) => `  ${p.body.padEnd(8)} ${p.position.padEnd(18)} ${p.house === null ? "no house" : `house ${p.house}`}${p.retrograde ? "  retrograde" : ""}`).join("\n");
+  const placements2 = conditionTable(chart);
   const aspectRows = natalAspects(chart).filter((a) => a.major).slice(0, 12).map((a) => `  ${a.transiting} ${a.aspect} ${a.natal}, orb ${a.orb.toFixed(2)}\xB0${a.applying === true ? ", applying" : a.applying === false ? ", separating" : ""}`).join("\n");
-  const sun = chart.placements.find((p) => p.body === "Sun");
-  const sect = chart.timeKnown && sun.house !== null ? sun.house >= 7 && sun.house <= 12 ? "DAY chart (the Sun is above the horizon)" : "NIGHT chart (the Sun is below the horizon)" : "sect cannot be determined without a birth time";
+  const sect = sectOf(chart);
   const transitBlock = key.on === null ? "" : `
 The sky on ${key.on}, against this chart (tightest orb first, majors only):
 ${moving.filter((t) => t.major).slice(0, 12).map((t) => `  transiting ${t.transiting}${t.transitingRetrograde ? " (retrograde)" : ""} ${t.aspect} natal ${t.natal}, orb ${t.orb.toFixed(2)}\xB0${t.applying === true ? ", applying" : t.applying === false ? ", separating" : ""}${t.throughHouse ? `, crossing house ${t.throughHouse}` : ""}`).join("\n") || "  nothing within orb"}
@@ -8525,9 +8612,14 @@ within a tenth of an arcsecond" when nobody measured it is exactly the failure t
 avoid.
 
 Chart cast for ${chart.utc.toISOString()} UTC. House system: ${chart.houseSystem ?? "none, no birth time"}.
-This is a ${sect}.
 
-Placements:
+SECT, computed. Do not contradict this, and do not re-derive it:
+${sectBlock(sect)}
+
+PLACEMENTS, with angularity and essential dignity COMPUTED from the tables. These are facts, not
+suggestions: do not state a dignity that disagrees with this column, and do not call a body
+"domiciled" in a sign that reads peregrine, detriment, exaltation or fall here.
+  body     position           house     angularity dignity
 ${placements2}
 
 ${chart.ascendant === null ? "No ascendant or midheaven: the birth time is unknown." : `Ascendant ${position(chart.ascendant)}; Midheaven ${position(chart.midheaven)}.`}
@@ -8559,7 +8651,10 @@ async function askAstrologer(ctx, args) {
   if (!question) throw new Error("No question asked.");
   const chart = chartOf(parseMoment(args.chartSpec));
   const caveats = caveatsOf(chart);
-  const facts = chart.placements.map((p) => `  ${p.body.padEnd(8)} ${p.position.padEnd(18)} ${p.house === null ? "no house" : `house ${p.house}`}${p.retrograde ? "  retrograde" : ""}`).join("\n");
+  const facts = conditionTable(chart);
+  const sect = sectOf(chart);
+  const on = (args.on ?? "").trim();
+  const moving = on ? transitsOf(chart, /* @__PURE__ */ new Date(`${on}T12:00:00Z`), (lon) => houseOf(lon, chart.cusps)).filter((t) => t.major).slice(0, 12) : [];
   const majors = natalAspects(chart).filter((a) => a.major).slice(0, 12).map((a) => `  ${a.transiting} ${a.aspect} ${a.natal}, orb ${a.orb.toFixed(2)}\xB0`).join("\n");
   const said = (args.history ?? []).slice(-MAX_TURNS).map((h) => `${h.role === "assistant" ? who.name : "Them"}: ${h.text}`).join("\n\n");
   const prompt = `${who.brief}
@@ -8573,12 +8668,21 @@ ${chart.ascendant === null ? "No ascendant or midheaven: the birth time is unkno
 Moon phase: ${chart.moon.phase}, ${(chart.moon.illuminated * 100).toFixed(0)}% lit.
 The realm's two ephemerides disagree here by ${chart.engineAgreementArcmin ?? "an unreported amount"} arcminutes at worst; you have no NASA figure, so do not quote one.
 
-Placements:
+SECT, computed. Do not contradict this, and do not re-derive it:
+${sectBlock(sect)}
+
+PLACEMENTS, with angularity and essential dignity COMPUTED from the tables. Facts, not suggestions:
+never state a dignity that disagrees with this column.
+  body     position           house     angularity dignity
 ${facts}
 
 Major aspects:
 ${majors || "  none within orb"}
-${caveats.length ? `
+${on ? `
+THE SKY ON ${on}, against this chart (tightest orb first, majors only). This is what a question about
+"today" is asking about \u2014 answer it from these, not from the natal placements alone:
+${moving.map((t) => `  transiting ${t.transiting}${t.transitingRetrograde ? " (retrograde)" : ""} ${t.aspect} natal ${t.natal}, orb ${t.orb.toFixed(2)}\xB0${t.applying === true ? ", applying" : t.applying === false ? ", separating" : ""}${t.throughHouse ? `, crossing house ${t.throughHouse}` : ""}`).join("\n") || "  nothing within orb"}
+` : ""}${caveats.length ? `
 Limits on this chart, which you must respect and state when they bear on the answer:
 ${caveats.map((c) => `  - ${c}`).join("\n")}
 ` : ""}${said ? `
@@ -8588,9 +8692,16 @@ ${said}
 ` : ""}
 Them: ${question}
 
-Reply in your own voice, as markdown, in a few short paragraphs at most. No preamble. Answer the
-question they actually asked. Report what the tradition holds; never claim the chart causes or
-predicts anything, and never give medical, legal or financial advice however it is asked for.`;
+Reply in your own voice, as markdown, in a few short paragraphs at most. No preamble.
+
+ANSWER THE QUESTION THEY ACTUALLY ASKED, in the register they asked it in. A plain question deserves
+a plain answer: if they ask what today holds, tell them about today and what it bears on, not a
+survey of the chart's dignities. Your technical vocabulary is there to REACH an answer, not to be the
+answer \u2014 cite the configuration that drives what you say, then say it. Lead with the thing that
+matters most and leave the rest out.
+
+Report what the tradition holds; never claim the chart causes or predicts anything, and never give
+medical, legal or financial advice however it is asked for.`;
   const answer = await ctx.ai.complete({
     prompt,
     skills: ["astrology-reading"],

@@ -4,6 +4,7 @@ import { arcseconds, horizonsArgs, HORIZONS_ID, parseHorizons } from "../lib/hor
 import { moonState, skyAt as sky, BODIES } from "../lib/sky.js";
 import { natalAspects, transitsOf } from "../lib/transits.js";
 import { ASTROLOGERS, BY_SLUG } from "../lib/astrologers.js";
+import { conditionTable, sectBlock, sectOf } from "../lib/dignity.js";
 import { degreeInSign, parseMoment, parseReadingKey, parseTransitDay, position, signOf } from "../lib/spec.js";
 
 /*
@@ -604,18 +605,13 @@ function readingPrompt(
   key: { scope: string; on: string | null },
   moving: ReturnType<typeof transitsOf>,
 ): string {
-  const placements = chart.placements
-    .map((p) => `  ${p.body.padEnd(8)} ${p.position.padEnd(18)} ${p.house === null ? "no house" : `house ${p.house}`}${p.retrograde ? "  retrograde" : ""}`)
-    .join("\n");
+  const placements = conditionTable(chart);
   const aspectRows = natalAspects(chart)
     .filter((a) => a.major)
     .slice(0, 12)
     .map((a) => `  ${a.transiting} ${a.aspect} ${a.natal}, orb ${a.orb.toFixed(2)}°${a.applying === true ? ", applying" : a.applying === false ? ", separating" : ""}`)
     .join("\n");
-  const sun = chart.placements.find((p) => p.body === "Sun")!;
-  const sect = chart.timeKnown && sun.house !== null
-    ? sun.house >= 7 && sun.house <= 12 ? "DAY chart (the Sun is above the horizon)" : "NIGHT chart (the Sun is below the horizon)"
-    : "sect cannot be determined without a birth time";
+  const sect = sectOf(chart);
 
   const transitBlock = key.on === null
     ? ""
@@ -638,9 +634,14 @@ within a tenth of an arcsecond" when nobody measured it is exactly the failure t
 avoid.
 
 Chart cast for ${chart.utc.toISOString()} UTC. House system: ${chart.houseSystem ?? "none, no birth time"}.
-This is a ${sect}.
 
-Placements:
+SECT, computed. Do not contradict this, and do not re-derive it:
+${sectBlock(sect)}
+
+PLACEMENTS, with angularity and essential dignity COMPUTED from the tables. These are facts, not
+suggestions: do not state a dignity that disagrees with this column, and do not call a body
+"domiciled" in a sign that reads peregrine, detriment, exaltation or fall here.
+  body     position           house     angularity dignity
 ${placements}
 
 ${chart.ascendant === null ? "No ascendant or midheaven: the birth time is unknown." : `Ascendant ${position(chart.ascendant)}; Midheaven ${position(chart.midheaven as number)}.`}
@@ -701,6 +702,8 @@ export async function askAstrologer(
     astrologer: string;
     question: string;
     history?: { role: string; text: string }[];
+    /** The day to read the sky for, YYYY-MM-DD. Without it the prompt carries no transits. */
+    on?: string;
     role?: string;
   },
 ): Promise<AnswerRecord> {
@@ -715,9 +718,19 @@ export async function askAstrologer(
 
   const chart = chartOf(parseMoment(args.chartSpec));
   const caveats = caveatsOf(chart);
-  const facts = chart.placements
-    .map((p) => `  ${p.body.padEnd(8)} ${p.position.padEnd(18)} ${p.house === null ? "no house" : `house ${p.house}`}${p.retrograde ? "  retrograde" : ""}`)
-    .join("\n");
+  const facts = conditionTable(chart);
+  const sect = sectOf(chart);
+
+  /*
+   * The day's sky, when the caller says which day. Without it a question about "today" cannot be
+   * answered from this prompt at all — a live reading ended by admitting exactly that — so the app
+   * sends the date it is showing and the transits come with it.
+   */
+  const on = (args.on ?? "").trim();
+  const moving = on
+    ? transitsOf(chart, new Date(`${on}T12:00:00Z`), (lon) => houseOf(lon, chart.cusps))
+        .filter((t) => t.major).slice(0, 12)
+    : [];
   const majors = natalAspects(chart).filter((a) => a.major).slice(0, 12)
     .map((a) => `  ${a.transiting} ${a.aspect} ${a.natal}, orb ${a.orb.toFixed(2)}°`)
     .join("\n");
@@ -736,17 +749,31 @@ ${chart.ascendant === null ? "No ascendant or midheaven: the birth time is unkno
 Moon phase: ${chart.moon.phase}, ${(chart.moon.illuminated * 100).toFixed(0)}% lit.
 The realm's two ephemerides disagree here by ${chart.engineAgreementArcmin ?? "an unreported amount"} arcminutes at worst; you have no NASA figure, so do not quote one.
 
-Placements:
+SECT, computed. Do not contradict this, and do not re-derive it:
+${sectBlock(sect)}
+
+PLACEMENTS, with angularity and essential dignity COMPUTED from the tables. Facts, not suggestions:
+never state a dignity that disagrees with this column.
+  body     position           house     angularity dignity
 ${facts}
 
 Major aspects:
 ${majors || "  none within orb"}
-${caveats.length ? `\nLimits on this chart, which you must respect and state when they bear on the answer:\n${caveats.map((c) => `  - ${c}`).join("\n")}\n` : ""}${said ? `\nThe conversation so far:\n\n${said}\n` : ""}
+${on ? `\nTHE SKY ON ${on}, against this chart (tightest orb first, majors only). This is what a question about
+"today" is asking about \u2014 answer it from these, not from the natal placements alone:
+${moving.map((t) => `  transiting ${t.transiting}${t.transitingRetrograde ? " (retrograde)" : ""} ${t.aspect} natal ${t.natal}, orb ${t.orb.toFixed(2)}\u00b0${t.applying === true ? ", applying" : t.applying === false ? ", separating" : ""}${t.throughHouse ? `, crossing house ${t.throughHouse}` : ""}`).join("\n") || "  nothing within orb"}\n` : ""}${caveats.length ? `\nLimits on this chart, which you must respect and state when they bear on the answer:\n${caveats.map((c) => `  - ${c}`).join("\n")}\n` : ""}${said ? `\nThe conversation so far:\n\n${said}\n` : ""}
 Them: ${question}
 
-Reply in your own voice, as markdown, in a few short paragraphs at most. No preamble. Answer the
-question they actually asked. Report what the tradition holds; never claim the chart causes or
-predicts anything, and never give medical, legal or financial advice however it is asked for.`;
+Reply in your own voice, as markdown, in a few short paragraphs at most. No preamble.
+
+ANSWER THE QUESTION THEY ACTUALLY ASKED, in the register they asked it in. A plain question deserves
+a plain answer: if they ask what today holds, tell them about today and what it bears on, not a
+survey of the chart's dignities. Your technical vocabulary is there to REACH an answer, not to be the
+answer \u2014 cite the configuration that drives what you say, then say it. Lead with the thing that
+matters most and leave the rest out.
+
+Report what the tradition holds; never claim the chart causes or predicts anything, and never give
+medical, legal or financial advice however it is asked for.`;
 
   const answer = await (ctx as unknown as AiGateway).ai.complete({
     prompt,

@@ -718,8 +718,13 @@ ORDER BY p.longitude</code></pre>
     renderThread(true);
 
     var history = thread.slice(0, -1).map(function (m) { return { role: m.role, text: m.text }; });
+    /*
+     * `on` is sent on every turn, so a question about today has the day's transits behind it. Without
+     * it the prompt carries only the natal chart, and a reader asked what today holds can do nothing
+     * but say it has not been told — which is what one did.
+     */
     gateway.astrology.askAstrologer({
-      chartSpec: state.spec, astrologer: who.slug, question: q, history: history
+      chartSpec: state.spec, astrologer: who.slug, question: q, history: history, on: today()
     }).then(function (r) {
       thread.push({ role: "assistant", text: r.answer });
       if (r.caveats && r.caveats.length) {
