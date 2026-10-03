@@ -776,7 +776,18 @@ ORDER BY p.longitude</code></pre>
     try {
       gateway.astrology.astrologers({}).then(function (list) {
         state.astrologers = list || [];
-        if (state.astrologers.length && !state.who) state.who = state.astrologers[0].slug;
+        /*
+         * Open on the reader the REALM marks as default, not on whichever happens to be first in the
+         * list. That was Hypatia, whose answer to "what does today hold" is a survey of the chart's
+         * dignities — correct, and not what was asked.
+         */
+        if (state.astrologers.length && !state.who) {
+          var def = null;
+          for (var i = 0; i < state.astrologers.length; i++) {
+            if (state.astrologers[i].isDefault) { def = state.astrologers[i].slug; break; }
+          }
+          state.who = def || state.astrologers[0].slug;
+        }
         renderAstrologers();
         renderThread();
       }).catch(function (e) {

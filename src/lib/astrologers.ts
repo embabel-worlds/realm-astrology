@@ -106,4 +106,10 @@ Name what would change your mind.`,
 
 export const BY_SLUG: Record<string, Astrologer> = Object.fromEntries(ASTROLOGERS.map((a) => [a.slug, a]));
 
+/*
+ * The reader every surface opens on. The column is the register somebody asking "what does today
+ * hold" is actually asking in; the traditionalist answers that question with a table of dignities,
+ * which is correct and is not an answer. Every surface takes this from here — the focus file, the
+ * agent, the views' `astrologer` default, and the app, via the `isDefault` flag on `astrologers`.
+ */
 export const DEFAULT_ASTROLOGER = "mercer";

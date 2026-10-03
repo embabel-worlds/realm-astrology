@@ -8239,6 +8239,7 @@ Name what would change your mind.`
   }
 ];
 var BY_SLUG = Object.fromEntries(ASTROLOGERS.map((a) => [a.slug, a]));
+var DEFAULT_ASTROLOGER = "mercer";
 
 // src/lib/dignity.ts
 var RULERSHIP = {
@@ -8717,7 +8718,12 @@ medical, legal or financial advice however it is asked for.`;
   };
 }
 async function astrologers(_ctx, _args) {
-  return ASTROLOGERS.map((a) => ({ slug: a.slug, name: a.name, tagline: a.tagline }));
+  return ASTROLOGERS.map((a) => ({
+    slug: a.slug,
+    name: a.name,
+    tagline: a.tagline,
+    isDefault: a.slug === DEFAULT_ASTROLOGER
+  }));
 }
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {

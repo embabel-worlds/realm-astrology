@@ -54,12 +54,16 @@ function stub(overrides = {}, delays = {}) {
     };
     window.gateway = {
       astrology: {
-        astrologers: async () => ([
-          { slug: 'hypatia', name: 'Hypatia', tagline: 'Hellenistic traditionalist: sect, dignity and the lord of the geniture.' },
-          { slug: 'juno', name: 'Juno', tagline: 'Psychological astrology: the chart as a portrait of a psyche, not a forecast.' },
-          { slug: 'mercer', name: 'Mercer', tagline: 'The column: one real configuration, one useful thought, short.' },
-          { slug: 'cassius', name: 'Cassius', tagline: 'The astronomer: exact about the geometry, exact about what it does not show.' },
-        ]),
+        astrologers: async () => {
+          const list = [
+            { slug: 'hypatia', name: 'Hypatia', tagline: 'Hellenistic traditionalist: sect, dignity and the lord of the geniture.' },
+            { slug: 'juno', name: 'Juno', tagline: 'Psychological astrology: the chart as a portrait of a psyche, not a forecast.' },
+            { slug: 'mercer', name: 'Mercer', tagline: 'The column: one real configuration, one useful thought, short.' },
+            { slug: 'cassius', name: 'Cassius', tagline: 'The astronomer: exact about the geometry, exact about what it does not show.' },
+          ];
+          const def = ov.__defaultSlug || 'mercer';
+          return list.map((x) => ({ slug: x.slug, name: x.name, tagline: x.tagline, isDefault: x.slug === def }));
+        },
         askAstrologer: async (a) => {
           window.__asked.push(a);
           if (delays.askAstrologer) await new Promise((r) => setTimeout(r, delays.askAstrologer));
@@ -354,4 +358,67 @@ test("no SVG coordinate is NaN, on any chart the page can draw", async ({ page }
   });
   expect(nan2).toEqual([]);
   expect(errors).toEqual([]);
+});
+
+test("the page opens on the reader the realm marks default, not the first listed", async ({ page }) => {
+  /*
+   * Mercer is third in the list. Opening on list order put the Hellenistic traditionalist in front of
+   * somebody asking what today held, and got them a survey of the chart's dignities.
+   */
+  await open(page);
+  await expect(page.locator('.astro[data-slug="mercer"]')).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator('.astro[data-slug="hypatia"]')).toHaveAttribute("aria-pressed", "false");
+  await expect(page.locator("#question")).toHaveAttribute("placeholder", /Mercer/);
+  /* Asking without touching the picker goes to Mercer. */
+  await page.fill("#question", "What does today hold?");
+  await page.click("#send");
+  const asked = await page.evaluate(() => window.__asked);
+  expect(asked[0].astrologer).toBe("mercer");
+});
+
+test("the flag decides which reader opens, not the position in the list", async ({ page }) => {
+  /* Move the flag to the LAST reader and the page must follow it, not fall back to order. */
+  const errors = await open(page, { __defaultSlug: "cassius" });
+  await expect(page.locator('.astro[data-slug="cassius"]')).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator('.astro[data-slug="mercer"]')).toHaveAttribute("aria-pressed", "false");
+  await expect(page.locator('.astro[aria-pressed="true"]')).toHaveCount(1);
+  await page.fill("#question", "Anything in this?");
+  await page.click("#send");
+  const asked = await page.evaluate(() => window.__asked);
+  expect(asked[0].astrologer).toBe("cassius");
+  expect(errors).toEqual([]);
+});
+
+test("with no reader flagged at all, the page still opens on someone", async ({ page }) => {
+  /* A realm that ships no default must not leave the picker empty and the Ask button inert. */
+  const errors = await open(page, { __defaultSlug: "nobody" });
+  await expect(page.locator('.astro[aria-pressed="true"]')).toHaveCount(1);
+  await expect(page.locator('.astro[data-slug="hypatia"]')).toHaveAttribute("aria-pressed", "true");
+  expect(errors).toEqual([]);
+});
+
+test("the harness's own stub is valid JavaScript", async ({ page }) => {
+  /*
+   * This guard exists because a broken stub does not look like a broken stub: it looks like the app
+   * failing nineteen different ways. It has happened twice — once referencing an `overrides` variable
+   * the generated code never declared, once with an unbalanced paren — and both times the failures
+   * pointed at the page. Parse it here, where the blame is unambiguous.
+   */
+  const sources = [stub(), stub({ __askFails: true, __defaultSlug: "cassius" }, { TransitsOnDay: 100 })];
+  for (const src of sources) {
+    expect(() => new Function(src), "generated stub must parse").not.toThrow();
+  }
+  /* And it must actually install both globals the page needs. */
+  await page.goto("about:blank");
+  const present = await page.evaluate((src) => {
+    // eslint-disable-next-line no-new-func
+    new Function(src)();
+    return {
+      views: typeof window.embabel?.views?.invoke,
+      ready: !!window.embabel?.manifest?.ready,
+      readers: typeof window.gateway?.astrology?.astrologers,
+      ask: typeof window.gateway?.astrology?.askAstrologer,
+    };
+  }, stub());
+  expect(present).toEqual({ views: "function", ready: true, readers: "function", ask: "function" });
 });

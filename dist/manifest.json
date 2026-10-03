@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-10-03T08:16:44.330Z",
+  "generatedAt": "2026-10-03T08:45:44.566Z",
   "entries": [
     {
       "namespace": "astrology",
@@ -170,7 +170,7 @@
     {
       "namespace": "astrology",
       "name": "astrologers",
-      "description": "The readers this realm ships, so a page can offer them without hard-coding four names.",
+      "description": "",
       "inputSchema": {
         "type": "object",
         "properties": {}
@@ -188,12 +188,16 @@
             },
             "tagline": {
               "type": "string"
+            },
+            "isDefault": {
+              "type": "boolean"
             }
           },
           "required": [
             "slug",
             "name",
-            "tagline"
+            "tagline",
+            "isDefault"
           ]
         }
       }

@@ -3,7 +3,7 @@ import { chartOf, houseOf, type Chart } from "../lib/chart.js";
 import { arcseconds, horizonsArgs, HORIZONS_ID, parseHorizons } from "../lib/horizons.js";
 import { moonState, skyAt as sky, BODIES } from "../lib/sky.js";
 import { natalAspects, transitsOf } from "../lib/transits.js";
-import { ASTROLOGERS, BY_SLUG } from "../lib/astrologers.js";
+import { ASTROLOGERS, BY_SLUG, DEFAULT_ASTROLOGER } from "../lib/astrologers.js";
 import { conditionTable, sectBlock, sectOf } from "../lib/dignity.js";
 import { degreeInSign, parseMoment, parseReadingKey, parseTransitDay, position, signOf } from "../lib/spec.js";
 
@@ -795,12 +795,25 @@ export interface AstrologerRecord {
   slug: string;
   name: string;
   tagline: string;
+  /**
+   * True for the reader a surface should open on. Carried as DATA so no page has to repeat the
+   * choice: the focus, the agent, the views and the app all take it from here, and changing it in
+   * one place changes it everywhere.
+   */
+  isDefault: boolean;
 }
 
-/** The readers this realm ships, so a page can offer them without hard-coding four names. */
+/*
+ * The readers this realm ships, so a page can offer them without hard-coding four names — and
+ * without deciding for itself which one to open on. The app previously selected whichever came first
+ * in this list, which put the Hellenistic traditionalist in front of somebody asking what today
+ * held, and got them a lecture on dignities.
+ */
 export async function astrologers(
   _ctx: GenericGatewayContext,
   _args: Record<string, never>,
 ): Promise<AstrologerRecord[]> {
-  return ASTROLOGERS.map((a) => ({ slug: a.slug, name: a.name, tagline: a.tagline }));
+  return ASTROLOGERS.map((a) => ({
+    slug: a.slug, name: a.name, tagline: a.tagline, isDefault: a.slug === DEFAULT_ASTROLOGER,
+  }));
 }
