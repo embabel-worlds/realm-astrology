@@ -7,7 +7,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { applyExtraction, coerce, defaultsFor, extractionPrompt, parseJsonObject } from "../src/lib/metrics.js";
-import { bySlug, metricsOf, type Metric, type Persona } from "../src/lib/personas.js";
+import { bySlug, metricsOf, tierFor, type Metric, type Persona } from "../src/lib/personas.js";
 
 const astrid = () => bySlug("astrid") as Persona;
 const metric = (name: string): Metric => metricsOf(astrid()).find((m) => m.name === name)!;
@@ -23,8 +23,7 @@ describe("Astrid declares both sets", () => {
   it("has an objective, which is what makes her an advocate", () => {
     expect(astrid().objective).toBeTruthy();
     expect(astrid().openingMove).toBeTruthy();
-    expect(astrid().avoids).toContain("politics");
-    expect(astrid().extractionRole).toBe("cheap");
+    expect(astrid().extractionRole).toBe("routing");
   });
 
   it("and the other readers have none", () => {
@@ -147,5 +146,34 @@ describe("the extraction prompt", () => {
     const prompt = extractionPrompt(astrid(), defaultsFor(astrid()), "", "Please stop.");
     expect(prompt).toContain("What they have just said");
     expect(prompt).toContain("Please stop.");
+  });
+});
+
+describe("a declared role reaches the gateway as a tier it accepts", () => {
+  /*
+   * `gateway.ai.complete` documents `cheap | workhorse | best`; a realm file declares a spec role id
+   * like `routing`. Passed through unmapped, an id the tool does not know resolves to the host
+   * default and the author never learns which model ran — so the mapping is asserted, not assumed.
+   */
+  it("maps every spec role id to a tier", () => {
+    const ids = ["chat_best", "chat_cheap", "code_best", "code_cheap", "routing",
+                 "narration", "vc_execution", "vc_relevance", "agentic_rag"];
+    for (const id of ids) {
+      expect(["cheap", "workhorse", "best"], `${id} maps to a real tier`).toContain(tierFor(id));
+    }
+  });
+
+  it("passes a tier through unchanged", () => {
+    for (const tier of ["cheap", "workhorse", "best"]) expect(tierFor(tier)).toBe(tier);
+  });
+
+  it("sends nothing for an unknown role, rather than a word the tool will ignore", () => {
+    expect(tierFor("nonsense")).toBeUndefined();
+    expect(tierFor(null)).toBeUndefined();
+  });
+
+  it("Astrid's declared role maps to the cheap tier", () => {
+    expect(astrid().extractionRole).toBe("routing");
+    expect(tierFor(astrid().extractionRole)).toBe("cheap");
   });
 });

@@ -3,7 +3,7 @@ import { chartOf, houseOf, type Chart } from "../lib/chart.js";
 import { arcseconds, horizonsArgs, HORIZONS_ID, parseHorizons } from "../lib/horizons.js";
 import { moonState, skyAt as sky, BODIES } from "../lib/sky.js";
 import { natalAspects, transitsOf } from "../lib/transits.js";
-import { bySlug, personas, slugs, type Persona } from "../lib/personas.js";
+import { bySlug, personas, slugs, tierFor, type Persona } from "../lib/personas.js";
 import { conditionTable, sectBlock, sectOf } from "../lib/dignity.js";
 import {
   applyExtraction, currentBlock, defaultsFor, extractionPrompt, parseJsonObject,
@@ -845,7 +845,7 @@ export async function askAstrologer(
     try {
       const emitted = await (ctx as unknown as AiGateway).ai.complete({
         prompt: extractionPrompt(who, loaded.values, said, question),
-        ...(who.extractionRole ? { role: who.extractionRole } : {}),
+        ...(tierFor(who.extractionRole) ? { role: tierFor(who.extractionRole) as string } : {}),
       });
       values = applyExtraction(
         who, loaded.values,
@@ -862,10 +862,6 @@ export async function askAstrologer(
   const agenda = [
     /* An objective is withheld once they have asked to stop, not countermanded. */
     who.objective && !stopped ? "WHAT YOU ARE TRYING TO ACHIEVE:\n" + who.objective : "",
-    who.avoids.length ? "You do not get drawn onto: " + who.avoids.join(", ") + "." : "",
-    who.unversed.length
-      ? "You do not claim competence in: " + who.unversed.join(", ") + " \u2014 say so rather than improvising."
-      : "",
   ].filter(Boolean).join("\n\n");
 
   /*

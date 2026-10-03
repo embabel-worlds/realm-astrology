@@ -27,7 +27,8 @@ describe("the compiled personas match what was authored", () => {
       const p = bySlug(slug)!;
       expect(p, `${slug} was compiled`).toBeTruthy();
       expect(p.name).toBe(identity.name);
-      expect(p.tagline).toBe(brief.tagline);
+      /* The picker label lives with the display name, not in the file about the agenda. */
+      expect(p.tagline).toBe(identity.description);
       /* Exact, not merely similar: a stale build is the failure this catches. */
       expect(p.brief).toBe(String(brief.brief).trim());
       expect(p.brief.length).toBeGreaterThan(200);
@@ -83,7 +84,7 @@ describe("a persona is a world concept, not an astrology one", () => {
      */
     const allowed = new Set([
       "slug", "name", "tagline", "brief", "isDefault",
-      "objective", "openingMove", "avoids", "unversed", "metrics", "extractionRole",
+      "objective", "openingMove", "metrics", "extractionRole",
     ]);
     for (const p of personas()) {
       for (const key of Object.keys(p as object)) {

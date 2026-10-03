@@ -6,7 +6,7 @@
 # are — see metrics/conversion.yml for the ones that are not.
 name: theory-of-mind
 description: What the reader believes about the person it is talking to, and about itself.
-metrics:
+slots:
   - name: mood
     scope: subject
     description: "How the person seems to be feeling, from what they have written. 1 very low, 10 very high."

@@ -25,7 +25,7 @@ export interface Persona {
   slug: string;
   /** Display name, from `identity.yml`. */
   name: string;
-  /** One line, for a picker or a column heading. */
+  /** One line, for a picker or a column heading, from `identity.yml#description`. */
   tagline: string;
   /** The persona compacted for one request, from `brief.yml`. */
   brief: string;
@@ -38,8 +38,6 @@ export interface Persona {
    */
   objective: string | null;
   openingMove: string | null;
-  avoids: string[];
-  unversed: string[];
   /** The metric sets this persona keeps, resolved from `metrics/` at build time. */
   metrics: MetricSet[];
   /** The LLM ROLE that extracts metric values. Never a model: the world decides which plays it. */
@@ -103,3 +101,38 @@ export const defaultPersona = (): Persona => {
   const all = personas();
   return all.find((p) => p.isDefault) ?? (all[0] as Persona);
 };
+
+/*
+ * A realm declares a SPEC role id; `gateway.ai.complete` documents its own, smaller set of tiers.
+ * The two vocabularies diverge today:
+ *
+ *   spec (realm-spec README, "LLM roles")  chat_best chat_cheap code_best code_cheap
+ *                                          routing narration vc_execution vc_relevance agentic_rag
+ *   gateway.ai.complete                    cheap | workhorse | best
+ *
+ * Both are real contracts and neither is wrong: the spec's ids are what a realm FILE declares, the
+ * gateway's tiers are what that one tool accepts. An unknown role resolves to the host default
+ * rather than failing, so passing `routing` straight through would run whichever model the default
+ * happens to be and nobody would ever learn which — the quiet degradation the fallback exists to
+ * make invisible. So the declaration is mapped to a tier at the call.
+ *
+ * When `ai.complete` grows the spec's ids this collapses to identity and should be deleted.
+ */
+const TIER_FOR_ROLE: Record<string, string> = {
+  chat_best: "best",
+  chat_cheap: "cheap",
+  code_best: "best",
+  code_cheap: "cheap",
+  routing: "cheap",
+  narration: "cheap",
+  vc_execution: "cheap",
+  vc_relevance: "workhorse",
+  agentic_rag: "workhorse",
+};
+
+/** The `ai.complete` tier for a declared role, or the role itself if it is already a tier. */
+export function tierFor(role: string | null): string | undefined {
+  if (!role) return undefined;
+  if (role === "cheap" || role === "workhorse" || role === "best") return role;
+  return TIER_FOR_ROLE[role] ?? undefined;
+}

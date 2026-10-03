@@ -2,7 +2,7 @@
  * Metric values: how they are stated to a model, and how its answer is validated.
  *
  * The facility is the spec's `metrics/` — declared sets, scoped to the subject, the agent or the
- * conversation, updated once per turn by a second model call under a cheap LLM role. The
+ * conversation, updated once per turn by a second model call under the `routing` LLM role. The
  * implementation this generalises clamped every value to 1-10, which is why `type` exists here: a
  * stage is not a score and a count is neither, and a host that validated everything as one scale
  * would have silently misreported two of the three metrics in `conversion.yml`.

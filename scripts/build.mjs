@@ -50,18 +50,19 @@ if (!wanted) throw new Error(`${FOCUS} declares no defaultPersona; nothing would
  * Metric sets, read once and resolved into the personas that name them. A set is a reusable
  * artifact precisely so two personas can keep the same metrics without retyping them.
  */
-const METRIC_DIR = "metrics";
+const NOTEBOOK_DIR = "notebook";
 const TYPES = ["ordinal", "stage", "count", "ratio", "boolean"];
 const SCOPES = ["subject", "agent", "conversation"];
 const sets = new Map();
-if (existsSync(METRIC_DIR)) {
-  for (const file of readdirSync(METRIC_DIR).sort()) {
+if (existsSync(NOTEBOOK_DIR)) {
+  for (const file of readdirSync(NOTEBOOK_DIR).sort()) {
     if (!file.endsWith(".yml")) continue;
-    const path = join(METRIC_DIR, file);
+    const path = join(NOTEBOOK_DIR, file);
     const set = parse(readFileSync(path, "utf8"));
     if (!set?.name) throw new Error(`${path} has no \`name\`.`);
-    if (!Array.isArray(set.metrics) || set.metrics.length === 0) throw new Error(`${path} declares no metrics.`);
-    for (const m of set.metrics) {
+    const declared = set.slots ?? set.metrics;
+    if (!Array.isArray(declared) || declared.length === 0) throw new Error(`${path} declares no slots.`);
+    for (const m of declared) {
       if (!m.name) throw new Error(`${path}: a metric has no \`name\`.`);
       if (!SCOPES.includes(m.scope)) throw new Error(`${path}: ${m.name} has scope '${m.scope}'; expected one of ${SCOPES.join(", ")}.`);
       if (!TYPES.includes(m.type)) throw new Error(`${path}: ${m.name} has type '${m.type}'; expected one of ${TYPES.join(", ")}.`);
@@ -80,14 +81,14 @@ if (existsSync(METRIC_DIR)) {
     sets.set(set.name, {
       name: set.name,
       description: set.description ?? null,
-      metrics: set.metrics.map((m) => ({
+      metrics: declared.map((m) => ({
         name: m.name, scope: m.scope, description: m.description ?? null, type: m.type,
         range: m.range ?? null, stages: m.stages ?? null, default: m.default,
       })),
     });
   }
 }
-if (sets.size) console.log(`metric sets: ${[...sets.keys()].join(", ")}`);
+if (sets.size) console.log(`notebook sets: ${[...sets.keys()].join(", ")}`);
 
 const personas = [];
 for (const slug of readdirSync(PERSONA_DIR).sort()) {
@@ -106,34 +107,33 @@ for (const slug of readdirSync(PERSONA_DIR).sort()) {
   const identity = parse(readFileSync(identityFile, "utf8")) ?? {};
   const brief = parse(readFileSync(briefFile, "utf8")) ?? {};
   if (!identity.name) throw new Error(`${identityFile} has no \`name\`.`);
-  if (!brief.tagline) throw new Error(`${briefFile} has no \`tagline\`.`);
-  if (!brief.brief || !String(brief.brief).trim()) throw new Error(`${briefFile} has no \`brief\`.`);
+  if (!identity.description) throw new Error(`${identityFile} has no \`description\`: a picker needs a label per persona.`);
+  // `brief` is optional in the contract; this realm calls a model directly, so it needs one.
+    if (!brief.brief || !String(brief.brief).trim()) throw new Error(`${briefFile} has no \`brief\`: this realm calls a model directly and the prompt needs the voice.`);
   /* A persona may name metric sets; every one it names must exist. */
-  const wantedSets = brief.metrics?.sets ?? [];
+  const wantedSets = brief.notebook?.sets ?? [];
   const resolved = wantedSets.map((n) => {
     const set = sets.get(n);
     if (!set) {
       throw new Error(
-        `${briefFile} names metric set '${n}', which no file under ${METRIC_DIR}/ declares. ` +
+        `${briefFile} names metric set '${n}', which no file under ${NOTEBOOK_DIR}/ declares. ` +
           `Declared: ${[...sets.keys()].join(", ") || "none"}.`,
       );
     }
     return set;
   });
-  const role = brief.metrics?.extraction?.role ?? null;
+  const role = brief.notebook?.extraction?.role ?? null;
   if (resolved.length && !role) {
-    throw new Error(`${briefFile} declares metric sets but no \`metrics.extraction.role\`; nothing would update them.`);
+    throw new Error(`${briefFile} declares notebook sets but no \`notebook.extraction.role\`; nothing would update them.`);
   }
   personas.push({
     slug,
     name: String(identity.name),
-    tagline: String(brief.tagline),
+    tagline: String(identity.description),
     brief: String(brief.brief).trim(),
     isDefault: slug === wanted,
     objective: brief.objective ? String(brief.objective).trim() : null,
     openingMove: brief.openingMove ? String(brief.openingMove).trim() : null,
-    avoids: brief.avoids ?? [],
-    unversed: brief.unversed ?? [],
     metrics: resolved,
     extractionRole: role,
   });

@@ -6,7 +6,7 @@
 # this generalises clamped everything to 1-10 and would have misreported all three.
 name: conversion
 description: How far the person's position has moved, and what is still in the way.
-metrics:
+slots:
   - name: stage
     scope: subject
     description: >-

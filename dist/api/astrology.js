@@ -8182,6 +8182,22 @@ function personas() {
 }
 var bySlug = (slug) => personas().find((p) => p.slug === (slug ?? "").toLowerCase()) ?? null;
 var slugs = () => personas().map((p) => p.slug);
+var TIER_FOR_ROLE = {
+  chat_best: "best",
+  chat_cheap: "cheap",
+  code_best: "best",
+  code_cheap: "cheap",
+  routing: "cheap",
+  narration: "cheap",
+  vc_execution: "cheap",
+  vc_relevance: "workhorse",
+  agentic_rag: "workhorse"
+};
+function tierFor(role) {
+  if (!role) return void 0;
+  if (role === "cheap" || role === "workhorse" || role === "best") return role;
+  return TIER_FOR_ROLE[role] ?? void 0;
+}
 
 // src/lib/dignity.ts
 var RULERSHIP = {
@@ -8746,7 +8762,7 @@ async function askAstrologer(ctx, args) {
     try {
       const emitted = await ctx.ai.complete({
         prompt: extractionPrompt(who, loaded.values, said, question),
-        ...who.extractionRole ? { role: who.extractionRole } : {}
+        ...tierFor(who.extractionRole) ? { role: tierFor(who.extractionRole) } : {}
       });
       values = applyExtraction(
         who,
@@ -8762,9 +8778,7 @@ async function askAstrologer(ctx, args) {
   const stopped = values?.askedToStop === true;
   const agenda = [
     /* An objective is withheld once they have asked to stop, not countermanded. */
-    who.objective && !stopped ? "WHAT YOU ARE TRYING TO ACHIEVE:\n" + who.objective : "",
-    who.avoids.length ? "You do not get drawn onto: " + who.avoids.join(", ") + "." : "",
-    who.unversed.length ? "You do not claim competence in: " + who.unversed.join(", ") + " \u2014 say so rather than improvising." : ""
+    who.objective && !stopped ? "WHAT YOU ARE TRYING TO ACHIEVE:\n" + who.objective : ""
   ].filter(Boolean).join("\n\n");
   const brake = stopped ? `
 
