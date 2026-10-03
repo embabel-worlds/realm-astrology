@@ -422,3 +422,51 @@ test("the harness's own stub is valid JavaScript", async ({ page }) => {
   }, stub());
   expect(present).toEqual({ views: "function", ready: true, readers: "function", ask: "function" });
 });
+
+test("the Cast button accepts the coordinates the gazetteer actually returns", async ({ page }) => {
+  /*
+   * The bug this exists for: the latitude and longitude inputs declared step="0.0001", so a
+   * coordinate with five decimals was INVALID to the browser and the submit was refused before any
+   * of the page's code ran — "cast doesn't work for sydney, it shows -33.86785 and it says that's
+   * not valid". Every place the gazetteer returns has five decimals.
+   *
+   * The place picker calls cast() programmatically, so it never touched native validation, which is
+   * exactly how the harness passed while the button was broken. This test presses the BUTTON.
+   */
+  await open(page);
+  const precise = [
+    { name: "Sydney", lat: "-33.86785", lon: "151.20732", tz: "Australia/Sydney" },
+    { name: "Melbourne", lat: "-37.814", lon: "144.96332", tz: "Australia/Melbourne" },
+    { name: "Sandringham", lat: "52.83094", lon: "0.507", tz: "Europe/London" },
+  ];
+  for (const place of precise) {
+    await page.fill("#lat", place.lat);
+    await page.fill("#lon", place.lon);
+    await page.fill("#tz", place.tz);
+    /* The browser's own verdict, before anything else: a blocked submit starts here. */
+    const valid = await page.evaluate(() => ({
+      lat: document.getElementById("lat").checkValidity(),
+      lon: document.getElementById("lon").checkValidity(),
+      msg: document.getElementById("lat").validationMessage,
+    }));
+    expect(valid.lat, `${place.name} latitude ${place.lat} must be valid to the browser: ${valid.msg}`).toBe(true);
+    expect(valid.lon, `${place.name} longitude ${place.lon} must be valid to the browser`).toBe(true);
+
+    const before = await page.evaluate(() => window.__calls.filter((c) => c.name === "CastChart").length);
+    await page.click('button[type="submit"]');
+    await page.waitForFunction(
+      (n) => window.__calls.filter((c) => c.name === "CastChart").length > n,
+      before, { timeout: 10000 });
+    const sent = await page.evaluate(() => window.__calls.filter((c) => c.name === "CastChart").pop().args);
+    expect(sent.latitude, `${place.name} latitude reached the view`).toBeCloseTo(parseFloat(place.lat), 5);
+    expect(sent.longitude, `${place.name} longitude reached the view`).toBeCloseTo(parseFloat(place.lon), 5);
+  }
+});
+
+test("a coordinate outside the globe is still refused", async ({ page }) => {
+  /* step="any" must not mean "anything": a latitude of 200 is not a place. */
+  await open(page);
+  await page.fill("#lat", "200");
+  const valid = await page.evaluate(() => document.getElementById("lat").checkValidity());
+  expect(valid).toBe(false);
+});
