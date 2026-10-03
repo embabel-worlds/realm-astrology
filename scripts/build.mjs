@@ -82,6 +82,16 @@ if (!personas.some((p) => p.isDefault)) {
   );
 }
 
+/*
+ * The default leads, then the rest alphabetically. Ordered HERE so every surface gets the same
+ * order from one place, and ordered by the FLAG rather than by name: change
+ * focuses/astrology.yml#defaultPersona and the card order follows, with nobody's name written twice.
+ *
+ * Directory order is alphabetical, which put the Hellenistic traditionalist first — a reasonable
+ * listing and the wrong front door.
+ */
+personas.sort((a, b) => Number(b.isDefault) - Number(a.isDefault) || a.slug.localeCompare(b.slug));
+
 mkdirSync("dist/data", { recursive: true });
 writeFileSync("dist/data/personas.json", JSON.stringify(personas));
 console.log(`personas: ${personas.map((p) => p.slug + (p.isDefault ? " (default)" : "")).join(", ")}`);

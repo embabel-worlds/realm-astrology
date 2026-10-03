@@ -55,6 +55,11 @@ function stub(overrides = {}, delays = {}) {
     window.gateway = {
       astrology: {
         astrologers: async () => {
+          /*
+           * Mercer is listed THIRD here on purpose, and must stay there. The build now orders the
+           * real response with the default first, so a stub that copied production order would make
+           * "opens on the flagged reader, not the first listed" pass for the wrong reason.
+           */
           const list = [
             { slug: 'hypatia', name: 'Hypatia', tagline: 'Hellenistic traditionalist: sect, dignity and the lord of the geniture.' },
             { slug: 'juno', name: 'Juno', tagline: 'Psychological astrology: the chart as a portrait of a psyche, not a forecast.' },

@@ -45,6 +45,17 @@ describe("the default comes from the focus file, not from code", () => {
   it("exactly one persona is flagged", () => {
     expect(personas().filter((p) => p.isDefault)).toHaveLength(1);
   });
+
+  it("leads the order, so a picker shows it first", () => {
+    /* Ordered by the flag, not by name: directory order is alphabetical and put Cassius first. */
+    expect(personas()[0]!.isDefault).toBe(true);
+    expect(personas()[0]!.slug).toBe(defaultPersona().slug);
+  });
+
+  it("and the rest follow alphabetically, so the order is stable", () => {
+    const rest = personas().slice(1).map((p) => p.slug);
+    expect(rest).toEqual(rest.slice().sort());
+  });
 });
 
 describe("lookup", () => {
