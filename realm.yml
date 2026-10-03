@@ -59,6 +59,7 @@ exports:
   - NasaCheck
   - ReadingRequest
   - Reading
+  - ConversationMetrics
   # A realm with an exports list loads only the skills it NAMES. Leave this out and the skill is
   # dropped at load with nothing but a debug line, and `readChart` then fails at the model call
   # saying no such skill exists — which is a long way from the cause.

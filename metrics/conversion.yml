@@ -1,0 +1,31 @@
+# How far a position has moved, and what is still in the way.
+#
+# The same facility as theory-of-mind, a different domain — which is the point of declaring metrics
+# rather than hardcoding a theory of mind. None of these three is a 1-10 score: a position is a
+# STAGE, an open question is a COUNT, and whether somebody said yes is a BOOLEAN. The implementation
+# this generalises clamped everything to 1-10 and would have misreported all three.
+name: conversion
+description: How far the person's position has moved, and what is still in the way.
+metrics:
+  - name: stage
+    scope: subject
+    description: >-
+      Where the person stands. `sceptical` doubts the premise; `curious` is asking real questions;
+      `engaged` is working with the reading; `persuaded` has said the reading landed; `declined`
+      has said they are not interested. Movement may go either way, and `declined` is a legitimate
+      resting place, not a failure to be worked around.
+    type: stage
+    stages: [sceptical, curious, engaged, persuaded, declined]
+    default: curious
+  - name: questionsOpen
+    scope: conversation
+    description: "How many questions the person has asked that the reader has not yet answered."
+    type: count
+    default: 0
+  - name: askedToStop
+    scope: subject
+    description: >-
+      True once the person has asked not to be persuaded, or asked the reader to drop the subject.
+      Once true it does not go back to false in this conversation.
+    type: boolean
+    default: false

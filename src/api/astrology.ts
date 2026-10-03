@@ -5,6 +5,10 @@ import { moonState, skyAt as sky, BODIES } from "../lib/sky.js";
 import { natalAspects, transitsOf } from "../lib/transits.js";
 import { bySlug, personas, slugs, type Persona } from "../lib/personas.js";
 import { conditionTable, sectBlock, sectOf } from "../lib/dignity.js";
+import {
+  applyExtraction, currentBlock, defaultsFor, extractionPrompt, parseJsonObject,
+  type MetricValues,
+} from "../lib/metrics.js";
 import { degreeInSign, parseMoment, parseReadingKey, parseTransitDay, position, signOf } from "../lib/spec.js";
 
 /*
@@ -495,6 +499,77 @@ interface AiGateway {
   ai: { complete(a: { prompt: string; role?: string; skills?: string[] }): Promise<unknown> };
 }
 
+/*
+ * Metric values are STORED, keyed on the conversation, because a client cannot be trusted with them
+ * and a stateless surface has nowhere to put them. The host owns conversation identity — the OpenAI
+ * surface's `embabel_conversation`, a connector's thread identity on Discord, a thread key in an app
+ * — so the realm takes the id as given and owns only what is known about it.
+ */
+interface StoreGateway {
+  /*
+   * `kg.query`, not `cypher.query`. The alias takes NO params, so a parameterised read against it
+   * leaves `$key` unbound and the call fails \u2014 and because the first version of this caught every
+   * error and fell back to the declared defaults, metrics silently restarted every single turn while
+   * looking like they worked. A catch that cannot tell "no row yet" from "the query is wrong" hides
+   * precisely the bug it is most likely to be hiding.
+   */
+  kg: { query(a: { cypher: string; params?: Record<string, unknown> }): Promise<unknown> };
+  repository: {
+    createEntry(a: Record<string, unknown>): Promise<unknown>;
+    updateEntry(a: Record<string, unknown>): Promise<unknown>;
+  };
+}
+
+const conversationKey = (persona: string, conversation: string) => `${persona}|${conversation}`;
+
+async function loadMetrics(ctx: GenericGatewayContext, who: Persona, conversation: string): Promise<{ values: MetricValues; turns: number; id: string | null; error: string | null }> {
+  const store = ctx as unknown as StoreGateway;
+  const key = conversationKey(who.slug, conversation);
+  const fresh = { values: defaultsFor(who), turns: 0, id: null as string | null, error: null as string | null };
+  try {
+    const res = (await store.kg.query({
+      cypher: "MATCH (m:ConversationMetrics {conversationKey: $key}) RETURN m.id AS id, m.values AS values, m.turns AS turns",
+      params: { key },
+    })) as { rows?: { id?: string; values?: string; turns?: number }[] };
+    const row = res?.rows?.[0];
+    /* No row is the normal first turn. An ERROR is not, and is reported rather than absorbed. */
+    if (!row?.values) return fresh;
+    return {
+      values: { ...defaultsFor(who), ...(parseJsonObject(row.values) as MetricValues) },
+      turns: row.turns ?? 0,
+      id: row.id ?? null,
+      error: null,
+    };
+  } catch (e) {
+    return { ...fresh, error: `could not read stored metrics: ${(e as Error).message}` };
+  }
+}
+
+async function saveMetrics(
+  ctx: GenericGatewayContext, who: Persona, conversation: string,
+  values: MetricValues, turns: number, id: string | null,
+): Promise<string | null> {
+  const store = ctx as unknown as StoreGateway;
+  const key = conversationKey(who.slug, conversation);
+  const entry = {
+    type: "ConversationMetrics",
+    conversationKey: key,
+    persona: who.slug,
+    conversation,
+    values: JSON.stringify(values),
+    turns,
+    updatedAt: new Date().toISOString(),
+  };
+  /* A failed write must not lose the reply the person is waiting for — but it must be visible. */
+  try {
+    if (id) await store.repository.updateEntry({ ...entry, id });
+    else await store.repository.createEntry(entry);
+    return null;
+  } catch (e) {
+    return `could not store metrics: ${(e as Error).message}`;
+  }
+}
+
 export interface ReadingRecord {
   readingId: string;
   spec: string;
@@ -672,6 +747,21 @@ export interface AnswerRecord {
   answer: string;
   /** What the chart cannot support, so an answer cannot quietly outrun its data. */
   caveats: string[];
+  /** The conversation these metrics are kept against, when one was given. */
+  conversation: string | null;
+  /**
+   * The metric values after this turn. READ BACK from the world, not carried by the caller: a
+   * client that supplied its own `stage` could simply assert it had been persuaded.
+   */
+  metrics: MetricValues | null;
+  /** True once the person has asked not to be persuaded. Latches for the conversation. */
+  advocacyStopped: boolean;
+  /**
+   * Why metrics are not being kept, when they are not. Null when all is well. A reader whose memory
+   * is quietly broken looks exactly like one with nothing to remember, which is how the first
+   * version of this shipped with persistence that never once worked.
+   */
+  metricsProblem: string | null;
 }
 
 /*
@@ -702,6 +792,11 @@ export async function askAstrologer(
     history?: { role: string; text: string }[];
     /** The day to read the sky for, YYYY-MM-DD. Without it the prompt carries no transits. */
     on?: string;
+    /**
+     * The host's conversation id. Metric values are stored against it, so a reader that keeps
+     * metrics needs one; without it the turn still works and nothing is remembered.
+     */
+    conversation?: string;
     role?: string;
   },
 ): Promise<AnswerRecord> {
@@ -734,8 +829,65 @@ export async function askAstrologer(
     .map((h) => `${h.role === "assistant" ? who.name : "Them"}: ${h.text}`)
     .join("\n\n");
 
-  const prompt = `${who.brief}
+  /* Stored metrics for this conversation, and the agenda this reader is working to. */
+  const keeps = who.metrics.length > 0 && !!(args.conversation ?? "").trim();
+  const conversation = (args.conversation ?? "").trim() || null;
+  const loaded = keeps ? await loadMetrics(ctx, who, conversation as string) : null;
 
+  /*
+   * Extraction runs HERE, before the reply is written, so the agenda below answers to what the
+   * person has just said rather than to the turn before it. Its failure must never cost them an
+   * answer, so a failed extraction falls back to the stored values and the turn continues.
+   */
+  let values = loaded ? loaded.values : null;
+  let problem: string | null = loaded?.error ?? null;
+  if (keeps && loaded) {
+    try {
+      const emitted = await (ctx as unknown as AiGateway).ai.complete({
+        prompt: extractionPrompt(who, loaded.values, said, question),
+        ...(who.extractionRole ? { role: who.extractionRole } : {}),
+      });
+      values = applyExtraction(
+        who, loaded.values,
+        parseJsonObject(typeof emitted === "string" ? emitted : JSON.stringify(emitted)),
+      );
+      problem = (await saveMetrics(ctx, who, conversation as string, values, loaded.turns + 1, loaded.id)) ?? problem;
+    } catch (e) {
+      values = loaded.values;
+      problem = `could not extract metrics: ${(e as Error).message}`;
+    }
+  }
+  const stopped = values?.askedToStop === true;
+
+  const agenda = [
+    /* An objective is withheld once they have asked to stop, not countermanded. */
+    who.objective && !stopped ? "WHAT YOU ARE TRYING TO ACHIEVE:\n" + who.objective : "",
+    who.avoids.length ? "You do not get drawn onto: " + who.avoids.join(", ") + "." : "",
+    who.unversed.length
+      ? "You do not claim competence in: " + who.unversed.join(", ") + " \u2014 say so rather than improvising."
+      : "",
+  ].filter(Boolean).join("\n\n");
+
+  /*
+   * The brake, placed LAST in the prompt and phrased as the test the reply has to pass. Stated
+   * alongside the objective instead, the model acknowledged the request and then volunteered a
+   * transit in the next breath \u2014 which is the behaviour, not a near miss of it.
+   */
+  const brake = stopped
+    ? `\n\nTHEY HAVE ASKED YOU NOT TO BE PERSUADED, EARLIER IN THIS CONVERSATION. That is settled and
+it does not expire. You are no longer trying to interest them in anything.
+
+Answer exactly what they asked and stop. Volunteering is over: no placement, no transit, no
+observation they did not ask for, and none slipped in after an acknowledgement. If their message is
+only the request to stop, the entire reply is that you have heard them, you will not push, and you
+are glad to answer whatever they do want \u2014 and then it ends.
+
+Before you send it, check: does this reply contain anything about their chart that they did not ask
+for? If it does, cut it. An unrequested reading after \u2018no pressure\u2019 IS the pressure.`
+    : "";
+
+  const prompt = `${who.brief}
+${agenda ? `\n${agenda}\n` : ""}${values ? currentBlock(who, values) : ""}
 You are in conversation with someone about their own chart, which is below and already computed.
 Answer only from it: do not recompute, and do not introduce a placement that is not here. If they
 ask something the chart cannot answer, say which field is missing rather than estimating it.
@@ -760,7 +912,7 @@ ${on ? `\nTHE SKY ON ${on}, against this chart (tightest orb first, majors only)
 ${moving.map((t) => `  transiting ${t.transiting}${t.transitingRetrograde ? " (retrograde)" : ""} ${t.aspect} natal ${t.natal}, orb ${t.orb.toFixed(2)}\u00b0${t.applying === true ? ", applying" : t.applying === false ? ", separating" : ""}${t.throughHouse ? `, crossing house ${t.throughHouse}` : ""}`).join("\n") || "  nothing within orb"}\n` : ""}${caveats.length ? `\nLimits on this chart, which you must respect and state when they bear on the answer:\n${caveats.map((c) => `  - ${c}`).join("\n")}\n` : ""}${said ? `\nThe conversation so far:\n\n${said}\n` : ""}
 Them: ${question}
 
-Reply in your own voice, as markdown, in a few short paragraphs at most. No preamble.
+Reply in your own voice, as markdown, in a few short paragraphs at most. No preamble.${brake}
 
 ANSWER THE QUESTION THEY ACTUALLY ASKED, in the register they asked it in. A plain question deserves
 a plain answer: if they ask what today holds, tell them about today and what it bears on, not a
@@ -777,13 +929,19 @@ medical, legal or financial advice however it is asked for.`;
     ...(args.role ? { role: args.role } : {}),
   });
 
+  const reply = (typeof answer === "string" ? answer : JSON.stringify(answer)).trim();
+
   return {
     chartSpec: chart.spec,
     astrologer: who.slug,
     astrologerName: who.name,
     question,
-    answer: (typeof answer === "string" ? answer : JSON.stringify(answer)).trim(),
+    answer: reply,
     caveats,
+    conversation,
+    metrics: values,
+    advocacyStopped: stopped,
+    metricsProblem: problem,
   };
 }
 

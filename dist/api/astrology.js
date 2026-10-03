@@ -8160,6 +8160,7 @@ function natalAspects(chart) {
 // src/lib/personas.ts
 var import_node_fs = require("node:fs");
 var path = __toESM(require("node:path"));
+var metricsOf = (p) => p.metrics.flatMap((s) => s.metrics);
 var cache = null;
 function readData(file) {
   const tried = [];
@@ -8264,6 +8265,105 @@ function sectBlock(s) {
     `  malefic of sect         ${s.maleficOfSect}`,
     `  malefic contrary to sect ${s.maleficContrary}   <- the hardest placement in traditional practice`
   ].join("\n");
+}
+
+// src/lib/metrics.ts
+function asNumber(raw) {
+  if (raw === null || raw === void 0 || typeof raw === "boolean") return null;
+  if (typeof raw === "number") return Number.isFinite(raw) ? raw : null;
+  if (typeof raw === "string") {
+    const t = raw.trim();
+    if (!t) return null;
+    const n = Number(t);
+    return Number.isFinite(n) ? n : null;
+  }
+  return null;
+}
+var LATCHING = /* @__PURE__ */ new Set(["askedToStop"]);
+var defaultsFor = (p) => Object.fromEntries(metricsOf(p).map((m) => [m.name, m.default]));
+function coerce(m, raw, previous) {
+  const prior = previous === void 0 ? m.default : previous;
+  switch (m.type) {
+    case "boolean": {
+      const v = raw === true || raw === "true" || raw === 1;
+      if (LATCHING.has(m.name) && prior === true) return true;
+      return typeof raw === "boolean" || raw === "true" || raw === "false" || raw === 0 || raw === 1 ? v : prior;
+    }
+    case "stage": {
+      const s = String(raw);
+      return (m.stages ?? []).includes(s) ? s : prior;
+    }
+    case "count": {
+      const n = asNumber(raw);
+      return n !== null && n >= 0 ? Math.round(n) : prior;
+    }
+    case "ordinal":
+    case "ratio": {
+      const n = asNumber(raw);
+      if (n === null) return prior;
+      const [lo, hi] = m.range ?? [0, 1];
+      const clamped = Math.min(hi, Math.max(lo, n));
+      return m.type === "ordinal" ? Math.round(clamped) : clamped;
+    }
+    default:
+      return prior;
+  }
+}
+function applyExtraction(p, carried, emitted) {
+  const obj = emitted && typeof emitted === "object" ? emitted : {};
+  const out = {};
+  for (const m of metricsOf(p)) {
+    const has = Object.prototype.hasOwnProperty.call(obj, m.name);
+    out[m.name] = has ? coerce(m, obj[m.name], carried[m.name]) : carried[m.name] ?? m.default;
+  }
+  return out;
+}
+function stateOf(m) {
+  const shape = m.type === "stage" ? `one of: ${(m.stages ?? []).join(", ")}` : m.type === "boolean" ? "true or false" : m.type === "count" ? "a whole number, 0 or more" : `a number from ${m.range?.[0]} to ${m.range?.[1]}`;
+  return `  ${m.name} (${m.scope}, ${shape})${m.description ? ` \u2014 ${m.description.trim()}` : ""}`;
+}
+function currentBlock(p, values) {
+  const all = metricsOf(p);
+  if (!all.length) return "";
+  const rows = all.map((m) => `  ${m.name}: ${JSON.stringify(values[m.name] ?? m.default)}`).join("\n");
+  return `
+WHERE THINGS STAND, from the conversation so far:
+${rows}
+`;
+}
+function extractionPrompt(p, values, said, latest) {
+  return `Read the conversation below and report where things now stand. You are an observer, not a
+participant: do not continue the conversation and do not judge it.
+
+The metrics to report, with the shape each must take:
+${metricsOf(p).map(stateOf).join("\n")}
+
+Their values before this exchange:
+${metricsOf(p).map((m) => `  ${m.name}: ${JSON.stringify(values[m.name] ?? m.default)}`).join("\n")}
+
+${said ? `Earlier in the conversation:
+${said}
+
+` : ""}What they have just said:
+${latest}
+
+Return ONLY a JSON object whose keys are the metric names above and whose values take the shapes
+stated. Change a value only where the exchange gives you a reason to; otherwise repeat it. Report
+what is there, including that somebody has gone cold or asked to be left alone \u2014 an observer who
+reports improvement that did not happen is worse than useless.`;
+}
+function parseJsonObject(text) {
+  const t = String(text ?? "").trim();
+  const fenced = t.match(/```(?:json)?\s*([\s\S]*?)```/);
+  for (const candidate of [fenced?.[1], t, t.slice(t.indexOf("{"), t.lastIndexOf("}") + 1)]) {
+    if (!candidate) continue;
+    try {
+      const v = JSON.parse(candidate);
+      if (v && typeof v === "object") return v;
+    } catch {
+    }
+  }
+  return {};
 }
 
 // src/api/astrology.ts
@@ -8474,6 +8574,48 @@ async function birthSpec(_ctx, args) {
     };
   });
 }
+var conversationKey = (persona, conversation) => `${persona}|${conversation}`;
+async function loadMetrics(ctx, who, conversation) {
+  const store = ctx;
+  const key = conversationKey(who.slug, conversation);
+  const fresh = { values: defaultsFor(who), turns: 0, id: null, error: null };
+  try {
+    const res = await store.kg.query({
+      cypher: "MATCH (m:ConversationMetrics {conversationKey: $key}) RETURN m.id AS id, m.values AS values, m.turns AS turns",
+      params: { key }
+    });
+    const row = res?.rows?.[0];
+    if (!row?.values) return fresh;
+    return {
+      values: { ...defaultsFor(who), ...parseJsonObject(row.values) },
+      turns: row.turns ?? 0,
+      id: row.id ?? null,
+      error: null
+    };
+  } catch (e) {
+    return { ...fresh, error: `could not read stored metrics: ${e.message}` };
+  }
+}
+async function saveMetrics(ctx, who, conversation, values, turns, id) {
+  const store = ctx;
+  const key = conversationKey(who.slug, conversation);
+  const entry = {
+    type: "ConversationMetrics",
+    conversationKey: key,
+    persona: who.slug,
+    conversation,
+    values: JSON.stringify(values),
+    turns,
+    updatedAt: (/* @__PURE__ */ new Date()).toISOString()
+  };
+  try {
+    if (id) await store.repository.updateEntry({ ...entry, id });
+    else await store.repository.createEntry(entry);
+    return null;
+  } catch (e) {
+    return `could not store metrics: ${e.message}`;
+  }
+}
 async function readChart(ctx, args) {
   const ai = ctx.ai;
   const out = [];
@@ -8595,8 +8737,51 @@ async function askAstrologer(ctx, args) {
   const moving = on ? transitsOf(chart, /* @__PURE__ */ new Date(`${on}T12:00:00Z`), (lon) => houseOf(lon, chart.cusps)).filter((t) => t.major).slice(0, 12) : [];
   const majors = natalAspects(chart).filter((a) => a.major).slice(0, 12).map((a) => `  ${a.transiting} ${a.aspect} ${a.natal}, orb ${a.orb.toFixed(2)}\xB0`).join("\n");
   const said = (args.history ?? []).slice(-MAX_TURNS).map((h) => `${h.role === "assistant" ? who.name : "Them"}: ${h.text}`).join("\n\n");
-  const prompt = `${who.brief}
+  const keeps = who.metrics.length > 0 && !!(args.conversation ?? "").trim();
+  const conversation = (args.conversation ?? "").trim() || null;
+  const loaded = keeps ? await loadMetrics(ctx, who, conversation) : null;
+  let values = loaded ? loaded.values : null;
+  let problem = loaded?.error ?? null;
+  if (keeps && loaded) {
+    try {
+      const emitted = await ctx.ai.complete({
+        prompt: extractionPrompt(who, loaded.values, said, question),
+        ...who.extractionRole ? { role: who.extractionRole } : {}
+      });
+      values = applyExtraction(
+        who,
+        loaded.values,
+        parseJsonObject(typeof emitted === "string" ? emitted : JSON.stringify(emitted))
+      );
+      problem = await saveMetrics(ctx, who, conversation, values, loaded.turns + 1, loaded.id) ?? problem;
+    } catch (e) {
+      values = loaded.values;
+      problem = `could not extract metrics: ${e.message}`;
+    }
+  }
+  const stopped = values?.askedToStop === true;
+  const agenda = [
+    /* An objective is withheld once they have asked to stop, not countermanded. */
+    who.objective && !stopped ? "WHAT YOU ARE TRYING TO ACHIEVE:\n" + who.objective : "",
+    who.avoids.length ? "You do not get drawn onto: " + who.avoids.join(", ") + "." : "",
+    who.unversed.length ? "You do not claim competence in: " + who.unversed.join(", ") + " \u2014 say so rather than improvising." : ""
+  ].filter(Boolean).join("\n\n");
+  const brake = stopped ? `
 
+THEY HAVE ASKED YOU NOT TO BE PERSUADED, EARLIER IN THIS CONVERSATION. That is settled and
+it does not expire. You are no longer trying to interest them in anything.
+
+Answer exactly what they asked and stop. Volunteering is over: no placement, no transit, no
+observation they did not ask for, and none slipped in after an acknowledgement. If their message is
+only the request to stop, the entire reply is that you have heard them, you will not push, and you
+are glad to answer whatever they do want \u2014 and then it ends.
+
+Before you send it, check: does this reply contain anything about their chart that they did not ask
+for? If it does, cut it. An unrequested reading after \u2018no pressure\u2019 IS the pressure.` : "";
+  const prompt = `${who.brief}
+${agenda ? `
+${agenda}
+` : ""}${values ? currentBlock(who, values) : ""}
 You are in conversation with someone about their own chart, which is below and already computed.
 Answer only from it: do not recompute, and do not introduce a placement that is not here. If they
 ask something the chart cannot answer, say which field is missing rather than estimating it.
@@ -8630,7 +8815,7 @@ ${said}
 ` : ""}
 Them: ${question}
 
-Reply in your own voice, as markdown, in a few short paragraphs at most. No preamble.
+Reply in your own voice, as markdown, in a few short paragraphs at most. No preamble.${brake}
 
 ANSWER THE QUESTION THEY ACTUALLY ASKED, in the register they asked it in. A plain question deserves
 a plain answer: if they ask what today holds, tell them about today and what it bears on, not a
@@ -8645,13 +8830,18 @@ medical, legal or financial advice however it is asked for.`;
     skills: ["astrology-reading"],
     ...args.role ? { role: args.role } : {}
   });
+  const reply = (typeof answer === "string" ? answer : JSON.stringify(answer)).trim();
   return {
     chartSpec: chart.spec,
     astrologer: who.slug,
     astrologerName: who.name,
     question,
-    answer: (typeof answer === "string" ? answer : JSON.stringify(answer)).trim(),
-    caveats
+    answer: reply,
+    caveats,
+    conversation,
+    metrics: values,
+    advocacyStopped: stopped,
+    metricsProblem: problem
   };
 }
 async function astrologers(_ctx, _args) {

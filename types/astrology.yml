@@ -531,3 +531,34 @@
     moonSign: "The Moon's sign."
     risingSign: "The rising sign. Null without a birth time."
     role: "The LLM role that produced it. A reading is not reproducible, and this says who to ask about it."
+
+# ── What a reader remembers about a conversation ───────────────────────────────────────────────
+#
+# Metric values are conversation state, so they are STORED, keyed on the conversation — not carried
+# by the client. The difference matters as soon as there is a second surface: an OpenAI-compatible
+# `/chat/completions` call is stateless and has nowhere to keep them, a Discord bot would need its
+# own store, and a client that carried its own `stage` could simply assert that it had been
+# persuaded. A client names WHICH conversation it is in; the world holds what is known about it.
+#
+# The conversation id is the host's: `embabel_conversation` on the OpenAI surface, the connector's
+# thread identity on Discord, a thread key in an app. The realm takes it as given.
+
+- name: ConversationMetrics
+  description: >-
+    The metric values a reader keeps for one conversation — the sets declared in its persona's
+    `brief.yml`, extracted once per turn. `conversationKey` is `<persona>|<conversation id>`, so one
+    conversation can be held by several readers independently and a reader's view of one person does
+    not leak into another's. `values` is the whole set as JSON, because the metrics a persona keeps
+    are its own declaration and not a fixed column list.
+  userAnchor: true
+  properties:
+    conversationKey:
+      identity: true
+      description: "`<persona slug>|<conversation id>`. Identity."
+    persona: "Which reader these belong to."
+    conversation: "The host's conversation id, as the surface supplied it."
+    values: "The metric values, as a JSON object keyed by metric name."
+    turns:
+      type: int
+      description: "How many turns have been extracted into these values."
+    updatedAt: "When they were last extracted, ISO 8601."

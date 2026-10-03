@@ -1,0 +1,27 @@
+# What a reader believes about the person it is talking to, and about itself.
+#
+# This is the set Astrid shipped with in 2024 (embabel/server, as a Discord bot): a generation model
+# wrote the reply, an extraction model re-read the turn and returned new values, and they persisted
+# across the conversation. Everything here is ordinal 1-10 because that is what these three actually
+# are — see metrics/conversion.yml for the ones that are not.
+name: theory-of-mind
+description: What the reader believes about the person it is talking to, and about itself.
+metrics:
+  - name: mood
+    scope: subject
+    description: "How the person seems to be feeling, from what they have written. 1 very low, 10 very high."
+    type: ordinal
+    range: [1, 10]
+    default: 5
+  - name: rapport
+    scope: conversation
+    description: "How well the exchange is going for both of them. 1 hostile or stalled, 10 easy and warm."
+    type: ordinal
+    range: [1, 10]
+    default: 5
+  - name: confidence
+    scope: agent
+    description: "How sure the reader is of its own reading of this chart. 1 guessing, 10 certain."
+    type: ordinal
+    range: [1, 10]
+    default: 5

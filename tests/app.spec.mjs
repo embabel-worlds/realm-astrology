@@ -65,6 +65,7 @@ function stub(overrides = {}, delays = {}) {
             { slug: 'juno', name: 'Juno', tagline: 'Psychological astrology: the chart as a portrait of a psyche, not a forecast.' },
             { slug: 'mercer', name: 'Mercer', tagline: 'The column: one real configuration, one useful thought, short.' },
             { slug: 'cassius', name: 'Cassius', tagline: 'The astronomer: exact about the geometry, exact about what it does not show.' },
+            { slug: 'astrid', name: 'Astrid', tagline: 'Believes the stars explain life, and would like you to as well.' },
           ];
           const def = ov.__defaultSlug || 'mercer';
           return list.map((x) => ({ slug: x.slug, name: x.name, tagline: x.tagline, isDefault: x.slug === def }));
@@ -73,12 +74,17 @@ function stub(overrides = {}, delays = {}) {
           window.__asked.push(a);
           if (delays.askAstrologer) await new Promise((r) => setTimeout(r, delays.askAstrologer));
           if (ov.__askFails) throw new Error('the model was unreachable');
+          const keeps = a.astrologer === 'astrid';
           return {
             chartSpec: a.chartSpec, astrologer: a.astrologer,
             astrologerName: a.astrologer.charAt(0).toUpperCase() + a.astrologer.slice(1),
             question: a.question,
             answer: '**Sun 26 Taurus** a reply to: ' + a.question,
             caveats: ov.__caveats || [],
+            conversation: a.conversation || null,
+            metrics: keeps ? (ov.__metrics || { mood: 5, rapport: 6, confidence: 5, stage: 'curious', questionsOpen: 0, askedToStop: false }) : null,
+            advocacyStopped: keeps ? !!(ov.__metrics && ov.__metrics.askedToStop) : false,
+            metricsProblem: ov.__metricsProblem || null,
           };
         },
       },
@@ -219,7 +225,10 @@ test("the place picker fills the coordinates and the zone", async ({ page }) => 
 
 test("each astrologer keeps their own thread, and the chart is passed to them", async ({ page }) => {
   const errors = await open(page);
-  await expect(page.locator(".astro")).toHaveCount(4);
+  /* However many readers the realm ships — asserting a number here is how this drifted when a
+     fifth arrived. */
+  const offered = await page.evaluate(() => window.gateway.astrology.astrologers().then((l) => l.length));
+  await expect(page.locator(".astro")).toHaveCount(offered);
   await page.click('.astro[data-slug="hypatia"]');
   await page.fill("#question", "Which planet rules this chart?");
   await page.click("#send");
@@ -474,4 +483,64 @@ test("a coordinate outside the globe is still refused", async ({ page }) => {
   await page.fill("#lat", "200");
   const valid = await page.evaluate(() => document.getElementById("lat").checkValidity());
   expect(valid).toBe(false);
+});
+
+test("a reader that keeps metrics shows them, and one that does not shows nothing", async ({ page }) => {
+  await open(page);
+  /* Mercer keeps none: no strip. */
+  await page.fill("#question", "What about today?");
+  await page.click("#send");
+  await expect(page.locator("#log .msg.astro-reply")).toHaveCount(1, { timeout: 10000 });
+  await expect(page.locator(".metricstrip")).toHaveCount(0);
+
+  /* Astrid keeps two sets: the strip appears, labelled as the operator's view. */
+  await page.click('.astro[data-slug="astrid"]');
+  await page.fill("#question", "Go on then.");
+  await page.click("#send");
+  await expect(page.locator(".metricstrip")).toHaveCount(1, { timeout: 10000 });
+  const strip = page.locator(".metricstrip");
+  await expect(strip).toContainText("operator view");
+  for (const name of ["mood", "rapport", "confidence", "stage", "questionsOpen", "askedToStop"]) {
+    await expect(strip).toContainText(name);
+  }
+});
+
+test("the page names which conversation it is in, and never carries the values", async ({ page }) => {
+  await open(page);
+  await page.click('.astro[data-slug="astrid"]');
+  await page.fill("#question", "Hello.");
+  await page.click("#send");
+  await expect(page.locator(".metricstrip")).toHaveCount(1, { timeout: 10000 });
+  const asked = await page.evaluate(() => window.__asked);
+  /* An id, so stored metrics are found again... */
+  expect(asked[0].conversation).toMatch(/^the-wheel-astrid-/);
+  /* ...and NOT the values, which a client could otherwise simply assert. */
+  expect(asked[0]).not.toHaveProperty("metrics");
+  expect(asked[0]).not.toHaveProperty("stage");
+
+  /* The same reader keeps the same conversation across turns. */
+  await page.fill("#question", "And again.");
+  await page.click("#send");
+  await expect(page.locator("#log .msg.astro-reply")).toHaveCount(2, { timeout: 10000 });
+  const again = await page.evaluate(() => window.__asked);
+  expect(again[1].conversation).toBe(again[0].conversation);
+});
+
+test("a stopped advocacy is visible in the strip", async ({ page }) => {
+  await open(page, { __metrics: { mood: 4, rapport: 3, confidence: 5, stage: "declined", questionsOpen: 0, askedToStop: true } });
+  await page.click('.astro[data-slug="astrid"]');
+  await page.fill("#question", "Please stop.");
+  await page.click("#send");
+  await expect(page.locator(".metricstrip")).toContainText("askedToStop true", { timeout: 10000 });
+  /* The two that matter are marked, not merely printed. */
+  await expect(page.locator(".metricstrip .chip.warn")).toHaveCount(2);
+});
+
+test("a broken metric store is reported, not hidden", async ({ page }) => {
+  /* Persistence that silently never worked is exactly how this shipped the first time. */
+  await open(page, { __metricsProblem: "could not store metrics: no such entry" });
+  await page.click('.astro[data-slug="astrid"]');
+  await page.fill("#question", "Hello.");
+  await page.click("#send");
+  await expect(page.locator(".metricstrip")).toContainText("could not store metrics", { timeout: 10000 });
 });

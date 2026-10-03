@@ -85,6 +85,8 @@
   .msg p { margin: 0 0 7px; } .msg p:last-child { margin-bottom: 0; }
   .msg strong { color: #fff; } .msg em { color: #cbb7e8; font-style: italic; }
   .msg h3 { font-size: 0.86rem; margin: 9px 0 4px; color: var(--purple); }
+  .metricstrip { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 8px 10px; border: 1px dashed var(--border); border-radius: 8px; margin-top: 4px; }
+  .metricstrip .mlabel { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--dim); margin-right: 4px; }
   .ask { display: flex; gap: 8px; margin-top: 12px; }
   .ask textarea { flex: 1; resize: vertical; min-height: 44px; }
   .starters { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
@@ -274,10 +276,32 @@ ORDER BY p.longitude</code></pre>
   var state = {
     spec: null, args: null, chart: null, placements: [], houses: [], aspects: [],
     transits: null, nasa: null, tab: "placements",
-    astrologers: [], who: null, threads: {}
+    astrologers: [], who: null, threads: {}, metrics: {}, metricsProblem: {}
   };
 
   var el = function (id) { return document.getElementById(id); };
+
+  /*
+   * A conversation id per reader. Metric values are stored in the world against it, so a reader
+   * that keeps metrics finds its own again on the next turn and after a reload. The client names
+   * WHICH conversation it is in and nothing more — it never carries the values, because a client
+   * that did could simply assert it had been persuaded.
+   *
+   * Kept per browser in localStorage, which is a per-viewer convenience and may be unavailable, so
+   * every access is guarded and a failure just means a fresh conversation.
+   */
+  function conversationFor(slug) {
+    var key = "the-wheel.conversation." + slug;
+    try {
+      var found = window.localStorage.getItem(key);
+      if (found) return found;
+    } catch (e) { /* private window, blocked storage: fall through */ }
+    var made = "the-wheel-" + slug + "-" +
+      (window.crypto && window.crypto.randomUUID ? window.crypto.randomUUID()
+        : String(Date.now()) + Math.random().toString(16).slice(2));
+    try { window.localStorage.setItem(key, made); } catch (e) { /* not fatal */ }
+    return made;
+  }
 
   /* Today, computed at load. Never baked into the page. */
   function today() {
@@ -709,6 +733,18 @@ ORDER BY p.longitude</code></pre>
       html += '<div class="msg astro-reply"><div class="who">' + escapeHtml(who ? who.name : "") +
         '</div><p><span class="spin"></span> reading&hellip;</p></div>';
     }
+    var m = who ? state.metrics[who.slug] : null;
+    if (m) {
+      var chips = Object.keys(m).map(function (k) {
+        var v = m[k];
+        var warn = (k === "askedToStop" && v === true) || (k === "stage" && v === "declined");
+        return '<span class="chip' + (warn ? " warn" : "") + '">' + escapeHtml(k) + " " + escapeHtml(String(v)) + "</span>";
+      }).join("");
+      var problem = who ? state.metricsProblem[who.slug] : null;
+      html += '<div class="metricstrip"><span class="mlabel">' + escapeHtml(who.name) +
+        " is keeping track — operator view</span>" + chips +
+        (problem ? '<span class="chip warn">' + escapeHtml(problem) + "</span>" : "") + "</div>";
+    }
     el("log").innerHTML = html;
     el("log").scrollTop = el("log").scrollHeight;
   }
@@ -731,12 +767,20 @@ ORDER BY p.longitude</code></pre>
      * but say it has not been told — which is what one did.
      */
     gateway.astrology.askAstrologer({
-      chartSpec: state.spec, astrologer: who.slug, question: q, history: history, on: today()
+      chartSpec: state.spec, astrologer: who.slug, question: q, history: history, on: today(),
+      conversation: conversationFor(who.slug)
     }).then(function (r) {
       thread.push({ role: "assistant", text: r.answer });
       if (r.caveats && r.caveats.length) {
         thread.push({ role: "assistant", text: "**On this chart’s limits:** " + r.caveats.join(" ") });
       }
+      /*
+       * A reader that keeps metrics has them shown. In THIS app the person reading is also the
+       * operator — their world, their appliance — and the operator is who the spec says may
+       * inspect what an agent scores. A page deployed to a third party would not show this.
+       */
+      state.metrics[who.slug] = r.metrics || null;
+      state.metricsProblem[who.slug] = r.metricsProblem || null;
       el("send").disabled = false;
       renderThread();
     }).catch(function (e) {

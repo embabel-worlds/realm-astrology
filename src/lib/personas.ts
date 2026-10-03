@@ -31,7 +31,39 @@ export interface Persona {
   brief: string;
   /** True for the persona `focuses/<realm>.yml#defaultPersona` names. */
   isDefault: boolean;
+  /*
+   * The agenda. A persona with an `objective` ADVOCATES; one without it answers. It is declared
+   * rather than implied so that an operator can read what a reader is trying to achieve, instead of
+   * inferring it from the way it argues.
+   */
+  objective: string | null;
+  openingMove: string | null;
+  avoids: string[];
+  unversed: string[];
+  /** The metric sets this persona keeps, resolved from `metrics/` at build time. */
+  metrics: MetricSet[];
+  /** The LLM ROLE that extracts metric values. Never a model: the world decides which plays it. */
+  extractionRole: string | null;
 }
+
+export interface Metric {
+  name: string;
+  scope: "subject" | "agent" | "conversation";
+  description: string | null;
+  type: "ordinal" | "stage" | "count" | "ratio" | "boolean";
+  range: [number, number] | null;
+  stages: string[] | null;
+  default: number | string | boolean;
+}
+
+export interface MetricSet {
+  name: string;
+  description: string | null;
+  metrics: Metric[];
+}
+
+/** Every metric across a persona's sets, which is the unit the extraction prompt works in. */
+export const metricsOf = (p: Persona): Metric[] => p.metrics.flatMap((s) => s.metrics);
 
 let cache: Persona[] | null = null;
 

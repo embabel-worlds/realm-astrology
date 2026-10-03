@@ -46,6 +46,49 @@ const focus = parse(readFileSync(FOCUS, "utf8"));
 const wanted = focus.defaultPersona;
 if (!wanted) throw new Error(`${FOCUS} declares no defaultPersona; nothing would open by default.`);
 
+/*
+ * Metric sets, read once and resolved into the personas that name them. A set is a reusable
+ * artifact precisely so two personas can keep the same metrics without retyping them.
+ */
+const METRIC_DIR = "metrics";
+const TYPES = ["ordinal", "stage", "count", "ratio", "boolean"];
+const SCOPES = ["subject", "agent", "conversation"];
+const sets = new Map();
+if (existsSync(METRIC_DIR)) {
+  for (const file of readdirSync(METRIC_DIR).sort()) {
+    if (!file.endsWith(".yml")) continue;
+    const path = join(METRIC_DIR, file);
+    const set = parse(readFileSync(path, "utf8"));
+    if (!set?.name) throw new Error(`${path} has no \`name\`.`);
+    if (!Array.isArray(set.metrics) || set.metrics.length === 0) throw new Error(`${path} declares no metrics.`);
+    for (const m of set.metrics) {
+      if (!m.name) throw new Error(`${path}: a metric has no \`name\`.`);
+      if (!SCOPES.includes(m.scope)) throw new Error(`${path}: ${m.name} has scope '${m.scope}'; expected one of ${SCOPES.join(", ")}.`);
+      if (!TYPES.includes(m.type)) throw new Error(`${path}: ${m.name} has type '${m.type}'; expected one of ${TYPES.join(", ")}.`);
+      if (m.default === undefined) throw new Error(`${path}: ${m.name} has no \`default\`.`);
+      /* The declaration must be usable: a range for a scale, stages for a stage. */
+      if ((m.type === "ordinal" || m.type === "ratio")) {
+        if (!Array.isArray(m.range) || m.range.length !== 2) throw new Error(`${path}: ${m.name} is ${m.type} and needs \`range: [min, max]\`.`);
+        if (m.default < m.range[0] || m.default > m.range[1]) throw new Error(`${path}: ${m.name} default ${m.default} is outside its range ${JSON.stringify(m.range)}.`);
+      }
+      if (m.type === "stage") {
+        if (!Array.isArray(m.stages) || m.stages.length < 2) throw new Error(`${path}: ${m.name} is a stage and needs two or more \`stages\`.`);
+        if (!m.stages.includes(m.default)) throw new Error(`${path}: ${m.name} default '${m.default}' is not one of its stages.`);
+      }
+    }
+    if (sets.has(set.name)) throw new Error(`Two metric sets are called '${set.name}'; a set name is unique across the world.`);
+    sets.set(set.name, {
+      name: set.name,
+      description: set.description ?? null,
+      metrics: set.metrics.map((m) => ({
+        name: m.name, scope: m.scope, description: m.description ?? null, type: m.type,
+        range: m.range ?? null, stages: m.stages ?? null, default: m.default,
+      })),
+    });
+  }
+}
+if (sets.size) console.log(`metric sets: ${[...sets.keys()].join(", ")}`);
+
 const personas = [];
 for (const slug of readdirSync(PERSONA_DIR).sort()) {
   const dir = join(PERSONA_DIR, slug);
@@ -65,12 +108,34 @@ for (const slug of readdirSync(PERSONA_DIR).sort()) {
   if (!identity.name) throw new Error(`${identityFile} has no \`name\`.`);
   if (!brief.tagline) throw new Error(`${briefFile} has no \`tagline\`.`);
   if (!brief.brief || !String(brief.brief).trim()) throw new Error(`${briefFile} has no \`brief\`.`);
+  /* A persona may name metric sets; every one it names must exist. */
+  const wantedSets = brief.metrics?.sets ?? [];
+  const resolved = wantedSets.map((n) => {
+    const set = sets.get(n);
+    if (!set) {
+      throw new Error(
+        `${briefFile} names metric set '${n}', which no file under ${METRIC_DIR}/ declares. ` +
+          `Declared: ${[...sets.keys()].join(", ") || "none"}.`,
+      );
+    }
+    return set;
+  });
+  const role = brief.metrics?.extraction?.role ?? null;
+  if (resolved.length && !role) {
+    throw new Error(`${briefFile} declares metric sets but no \`metrics.extraction.role\`; nothing would update them.`);
+  }
   personas.push({
     slug,
     name: String(identity.name),
     tagline: String(brief.tagline),
     brief: String(brief.brief).trim(),
     isDefault: slug === wanted,
+    objective: brief.objective ? String(brief.objective).trim() : null,
+    openingMove: brief.openingMove ? String(brief.openingMove).trim() : null,
+    avoids: brief.avoids ?? [],
+    unversed: brief.unversed ?? [],
+    metrics: resolved,
+    extractionRole: role,
   });
 }
 
@@ -94,4 +159,4 @@ personas.sort((a, b) => Number(b.isDefault) - Number(a.isDefault) || a.slug.loca
 
 mkdirSync("dist/data", { recursive: true });
 writeFileSync("dist/data/personas.json", JSON.stringify(personas));
-console.log(`personas: ${personas.map((p) => p.slug + (p.isDefault ? " (default)" : "")).join(", ")}`);
+console.log(`personas: ${personas.map((p) => p.slug + (p.isDefault ? " (default)" : "") + (p.metrics.length ? ` [${p.metrics.map((s2) => s2.name).join("+")}]` : "")).join(", ")}`);

@@ -76,8 +76,21 @@ describe("a persona is a world concept, not an astrology one", () => {
    * Nothing in the shape is astrological, and this test fails if that creeps back.
    */
   it("carries no realm-specific field", () => {
-    const keys = Object.keys(personas()[0] as object).sort();
-    expect(keys).toEqual(["brief", "isDefault", "name", "slug", "tagline"]);
+    /*
+     * The intent, not a frozen list: an earlier version pinned the exact keys and failed the moment
+     * the spec's agenda fields arrived, which told us nothing about whether the shape had gone
+     * astrological. Every key must be one the SPEC defines for a persona.
+     */
+    const allowed = new Set([
+      "slug", "name", "tagline", "brief", "isDefault",
+      "objective", "openingMove", "avoids", "unversed", "metrics", "extractionRole",
+    ]);
+    for (const p of personas()) {
+      for (const key of Object.keys(p as object)) {
+        expect(allowed.has(key), `'${key}' is not a persona field the spec defines`).toBe(true);
+        expect(key.toLowerCase()).not.toMatch(/astro|chart|zodiac|sign|reader/);
+      }
+    }
   });
 
   it("the module names nothing after this realm", () => {

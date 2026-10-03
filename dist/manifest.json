@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-10-03T16:34:34.431Z",
+  "generatedAt": "2026-10-03T17:06:26.804Z",
   "entries": [
     {
       "namespace": "astrology",
@@ -39,6 +39,9 @@
           "on": {
             "type": "string"
           },
+          "conversation": {
+            "type": "string"
+          },
           "role": {
             "type": "string"
           }
@@ -72,6 +75,19 @@
             "items": {
               "type": "string"
             }
+          },
+          "conversation": {
+            "type": "string"
+          },
+          "metrics": {
+            "type": "object",
+            "properties": {}
+          },
+          "advocacyStopped": {
+            "type": "boolean"
+          },
+          "metricsProblem": {
+            "type": "string"
           }
         },
         "required": [
@@ -80,7 +96,8 @@
           "astrologerName",
           "question",
           "answer",
-          "caveats"
+          "caveats",
+          "advocacyStopped"
         ]
       }
     },
