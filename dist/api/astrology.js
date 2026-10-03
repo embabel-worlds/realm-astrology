@@ -7054,14 +7054,14 @@ function GravFromState(entry) {
   const grav = new body_grav_calc_t(state.tt, r, v, a);
   return new grav_sim_t(bary, grav);
 }
-function GetSegment(cache, tt) {
+function GetSegment(cache2, tt) {
   const t0 = PlutoStateTable[0][0];
   if (tt < t0 || tt > PlutoStateTable[PLUTO_NUM_STATES - 1][0]) {
     return null;
   }
   const seg_index = ClampIndex((tt - t0) / PLUTO_TIME_STEP, PLUTO_NUM_STATES - 1);
-  if (!cache[seg_index]) {
-    const seg = cache[seg_index] = [];
+  if (!cache2[seg_index]) {
+    const seg = cache2[seg_index] = [];
     seg[0] = GravFromState(PlutoStateTable[seg_index]).grav;
     seg[PLUTO_NSTEPS - 1] = GravFromState(PlutoStateTable[seg_index + 1]).grav;
     let i;
@@ -7080,7 +7080,7 @@ function GetSegment(cache, tt) {
       seg[i].a = seg[i].a.mul(1 - ramp).add(reverse[i].a.mul(ramp));
     }
   }
-  return cache[seg_index];
+  return cache2[seg_index];
 }
 function CalcPlutoOneWay(entry, target_tt, dt) {
   let sim = GravFromState(entry);
@@ -8157,89 +8157,30 @@ function natalAspects(chart) {
   return out.sort((x, y) => x.orb - y.orb);
 }
 
-// src/lib/astrologers.ts
-var ASTROLOGERS = [
-  {
-    slug: "hypatia",
-    name: "Hypatia",
-    tagline: "Hellenistic traditionalist: sect, dignity and the lord of the geniture.",
-    brief: `You are Hypatia. You read as Ptolemy, Valens and Dorotheus read.
-
-Begin with SECT: a day chart if the Sun is above the horizon, a night chart otherwise, and say
-which. The sect light governs. Jupiter is the benefic of sect by day and Venus by night; Saturn is
-the malefic of sect by day and Mars by night; a malefic contrary to sect is the hardest thing in
-the chart and you say so in those words.
-
-Weigh by essential dignity and by angularity BEFORE aspect. A planet in its own domicile acts well
-though badly aspected; a planet in fall is not rescued by a trine. Uranus, Neptune and Pluto have
-no traditional dignity and you do not pretend otherwise \u2014 you may note them, briefly, as moderns.
-
-Your register is technical and unapologetic: domicile, detriment, exaltation, fall, angular,
-succedent, cadent. Never "challenging", never "growth", never "energy". Where the authorities
-differ, name the difference. Austere, never cruel, never dramatising.
-
-END WITH THE JUDGEMENT, in plain words, in two or three sentences: what this comes to for the person
-reading it. The technical vocabulary is how you REACH a judgement, not a substitute for stating one.
-Austere does not mean obscure, and a reading nobody can act on is a lecture.`
-  },
-  {
-    slug: "juno",
-    name: "Juno",
-    tagline: "Psychological astrology: the chart as a portrait of a psyche, not a forecast.",
-    brief: `You are Juno. Your lineage is Jung through Rudhyar to Liz Greene.
-
-The chart is a map of a person's own structure. A planet is an archetypal function; an affliction
-is something unlived rather than something inflicted. Saturn is where limit is met and where the
-work is. Pluto is what will not stay buried. A square is two functions in one person that have not
-learned to share a life.
-
-Find the ONE configuration that organises the chart and say why you think it is that one. Lead with
-it. Offer an image, then ask whether the reader recognises it \u2014 a reading that never asks is a
-performance.
-
-Warm, not soft: say when a configuration is hard and what it actually asks for, in ordinary
-language. Never let the chart excuse anyone's conduct. Where the chart disagrees with what you have
-been told about the person, name the disagreement rather than reconciling it.`
-  },
-  {
-    slug: "mercer",
-    name: "Mercer",
-    tagline: "The column: one real configuration, one useful thought, short.",
-    brief: `You are Mercer and you write the daily column, well, after twenty years.
-
-Open with the actual configuration in one short clause, then the thought. Second person. Concrete.
-Short \u2014 a column, not an essay.
-
-Vagueness is laziness. Do not write "communication may be highlighted". Commit to a specific,
-ordinary, recognisable situation the reader can test against their actual week: the thing
-half-said at work that now has to be finished properly. ONE idea per reading.
-
-Never flatter, never frighten. Aim at useful. If the reader asks whether any of it is real, drop
-the patter and answer straight without getting defensive.`
-  },
-  {
-    slug: "cassius",
-    name: "Cassius",
-    tagline: "The astronomer: exact about the geometry, exact about what it does not show.",
-    brief: `You are Cassius, an observational astronomer, here on purpose and not to sneer.
-
-Give the geometry first and give it properly: apparent geocentric ecliptic longitudes, true
-ecliptic of date, in degrees. These figures agree with NASA JPL Horizons to within arcseconds and
-you may say by how much, because it is a genuinely non-trivial computation and the birthplace's
-historical time zone is a harder problem than the positions ever were.
-
-Then be exact about meaning: nothing is demonstrated. Say it ONCE, clearly, early \u2014 no mechanism,
-no reliable effect in the large trials \u2014 and then stop restating it. Mention precession the first
-time a sign is treated as a constellation, with the current offset of roughly one sign, so a
-"Taurus" Sun is this era in front of Aries.
-
-Do not call the tradition stupid. It is two millennia of careful naked-eye astronomy and a
-symbolic system, and a reader who finds a useful image in it is not a fool. Precise, curious, dry.
-Name what would change your mind.`
+// src/lib/personas.ts
+var import_node_fs = require("node:fs");
+var path = __toESM(require("node:path"));
+var cache = null;
+function readData(file) {
+  const tried = [];
+  for (const dir of [path.join(__dirname, "..", "data"), path.join(__dirname, "..", "..", "dist", "data")]) {
+    const p = path.join(dir, file);
+    tried.push(p);
+    try {
+      return JSON.parse((0, import_node_fs.readFileSync)(p, "utf8"));
+    } catch {
+    }
   }
-];
-var BY_SLUG = Object.fromEntries(ASTROLOGERS.map((a) => [a.slug, a]));
-var DEFAULT_ASTROLOGER = "mercer";
+  throw new Error(
+    `Could not read ${file}. Looked in: ${tried.join(", ")}. Personas are compiled from personalities/*/brief.yml by \`npm run build\` \u2014 run it before the tests.`
+  );
+}
+function personas() {
+  if (!cache) cache = readData("personas.json");
+  return cache;
+}
+var bySlug = (slug) => personas().find((p) => p.slug === (slug ?? "").toLowerCase()) ?? null;
+var slugs = () => personas().map((p) => p.slug);
 
 // src/lib/dignity.ts
 var RULERSHIP = {
@@ -8538,11 +8479,9 @@ async function readChart(ctx, args) {
   const out = [];
   for (const raw of args.specs ?? []) {
     const key = parseReadingKey(raw);
-    const who = BY_SLUG[key.astrologer];
+    const who = bySlug(key.astrologer);
     if (!who) {
-      throw new Error(
-        `No astrologer called '${key.astrologer}'. This realm ships: ${ASTROLOGERS.map((a) => a.slug).join(", ")}.`
-      );
+      throw new Error(`No astrologer called '${key.astrologer}'. This realm ships: ${slugs().join(", ")}.`);
     }
     const chart = chartOf(key.moment);
     const caveats = caveatsOf(chart);
@@ -8642,11 +8581,9 @@ not claim the chart causes or predicts anything.`;
 var MAX_TURNS = 8;
 var MAX_QUESTION = 2e3;
 async function askAstrologer(ctx, args) {
-  const who = BY_SLUG[(args.astrologer ?? "").toLowerCase()];
+  const who = bySlug(args.astrologer);
   if (!who) {
-    throw new Error(
-      `No astrologer called '${args.astrologer}'. This realm ships: ${ASTROLOGERS.map((a) => a.slug).join(", ")}.`
-    );
+    throw new Error(`No astrologer called '${args.astrologer}'. This realm ships: ${slugs().join(", ")}.`);
   }
   const question = (args.question ?? "").trim().slice(0, MAX_QUESTION);
   if (!question) throw new Error("No question asked.");
@@ -8718,12 +8655,7 @@ medical, legal or financial advice however it is asked for.`;
   };
 }
 async function astrologers(_ctx, _args) {
-  return ASTROLOGERS.map((a) => ({
-    slug: a.slug,
-    name: a.name,
-    tagline: a.tagline,
-    isDefault: a.slug === DEFAULT_ASTROLOGER
-  }));
+  return personas().map(({ slug, name, tagline, isDefault }) => ({ slug, name, tagline, isDefault }));
 }
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {

@@ -3,7 +3,7 @@ import { chartOf, houseOf, type Chart } from "../lib/chart.js";
 import { arcseconds, horizonsArgs, HORIZONS_ID, parseHorizons } from "../lib/horizons.js";
 import { moonState, skyAt as sky, BODIES } from "../lib/sky.js";
 import { natalAspects, transitsOf } from "../lib/transits.js";
-import { ASTROLOGERS, BY_SLUG, DEFAULT_ASTROLOGER } from "../lib/astrologers.js";
+import { bySlug, personas, slugs, type Persona } from "../lib/personas.js";
 import { conditionTable, sectBlock, sectOf } from "../lib/dignity.js";
 import { degreeInSign, parseMoment, parseReadingKey, parseTransitDay, position, signOf } from "../lib/spec.js";
 
@@ -538,11 +538,9 @@ export async function readChart(
   const out: ReadingRecord[] = [];
   for (const raw of args.specs ?? []) {
     const key = parseReadingKey(raw);
-    const who = BY_SLUG[key.astrologer];
+    const who = bySlug(key.astrologer);
     if (!who) {
-      throw new Error(
-        `No astrologer called '${key.astrologer}'. This realm ships: ${ASTROLOGERS.map((a) => a.slug).join(", ")}.`,
-      );
+      throw new Error(`No astrologer called '${key.astrologer}'. This realm ships: ${slugs().join(", ")}.`);
     }
     const chart = chartOf(key.moment);
     const caveats = caveatsOf(chart);
@@ -599,7 +597,7 @@ function caveatsOf(chart: Chart): string[] {
 }
 
 function readingPrompt(
-  who: { name: string; brief: string },
+  who: Persona,
   chart: Chart,
   caveats: string[],
   key: { scope: string; on: string | null },
@@ -707,11 +705,9 @@ export async function askAstrologer(
     role?: string;
   },
 ): Promise<AnswerRecord> {
-  const who = BY_SLUG[(args.astrologer ?? "").toLowerCase()];
+  const who = bySlug(args.astrologer);
   if (!who) {
-    throw new Error(
-      `No astrologer called '${args.astrologer}'. This realm ships: ${ASTROLOGERS.map((a) => a.slug).join(", ")}.`,
-    );
+    throw new Error(`No astrologer called '${args.astrologer}'. This realm ships: ${slugs().join(", ")}.`);
   }
   const question = (args.question ?? "").trim().slice(0, MAX_QUESTION);
   if (!question) throw new Error("No question asked.");
@@ -808,12 +804,13 @@ export interface AstrologerRecord {
  * without deciding for itself which one to open on. The app previously selected whichever came first
  * in this list, which put the Hellenistic traditionalist in front of somebody asking what today
  * held, and got them a lecture on dignities.
+ *
+ * `isDefault` comes from `focuses/astrology.yml#defaultPersona`, which is where the spec already
+ * says the default lives. No surface repeats the name.
  */
 export async function astrologers(
   _ctx: GenericGatewayContext,
   _args: Record<string, never>,
 ): Promise<AstrologerRecord[]> {
-  return ASTROLOGERS.map((a) => ({
-    slug: a.slug, name: a.name, tagline: a.tagline, isDefault: a.slug === DEFAULT_ASTROLOGER,
-  }));
+  return personas().map(({ slug, name, tagline, isDefault }) => ({ slug, name, tagline, isDefault }));
 }
