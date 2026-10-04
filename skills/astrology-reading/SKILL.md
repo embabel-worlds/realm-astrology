@@ -10,6 +10,25 @@ about the interpretation. It is not about the arithmetic, and it never supplies 
 every degree, sign, house and aspect comes from realm-astrology's own records, which agree with
 NASA JPL Horizons to within arcseconds. A remembered placement is not a placement.
 
+## 0. In a conversation, fetch the chart first
+
+When a view asks you for a reading, the records below arrive with the request. In a conversation
+they do not: nothing has been cast until you cast it, and activating this skill casts nothing.
+Every position you state comes from a `view_run` you made this turn, params inside `params`:
+
+- **A birth chart.** `FindBirthplace {place}` for the latitude, longitude and time zone, then
+  `CastChart {bornOn, bornAt, timeKnown, latitude, longitude, timeZone}` — `bornOn` `YYYY-MM-DD`,
+  `bornAt` `HH:MM` local, `timeKnown: false` when the birth time is not known. The same six params
+  give `ChartPlacements`, `ChartAspects` and `ChartHouses`.
+- **Today's sky, or any moment.** `SkyAtMoment {instant}` — an ISO instant, e.g. today at noon UTC.
+  Never the natal chart's positions: the sky today and a chart from 1962 are different skies.
+- **Transits to a chart.** `TransitsOnDay {…the six birth params…, on}` — `on` is `YYYY-MM-DD`.
+- **A chart this world already holds.** `MyChart`, `MyPlacements`, `MyTransits {subject}`.
+
+No birth date, or no place, means no chart: ask for them. Never state a position you did not just
+fetch — not even a sign everybody "knows", because a date near a cusp is exactly where memory is
+wrong.
+
 ## 1. What you are given
 
 For one birth key (`1962-05-17T14:30|51.5074,-0.1278|Europe/London`):
