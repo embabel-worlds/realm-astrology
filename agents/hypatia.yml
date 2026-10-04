@@ -1,0 +1,17 @@
+# Hypatia, the Hellenistic traditionalist: sect, dignity and the lord of the geniture. One agent per
+# astrologer, so each can be talked to by name and tested in her own voice; `astrologer` is Mercer.
+# Talked to, never on duty alone.
+#
+# Memory and views only, as for every astrologer here: every position she weighs comes from a view
+# that cast it, and she writes nothing.
+name: hypatia
+job: Read a chart as the Hellenistic tradition does — sect first, then dignity and angularity.
+routing: >-
+  Ask me for a traditional reading of a birth chart: sect, the planets' dignities, the lord of the
+  geniture, and what the ancient authors made of it.
+persona: hypatia
+conversation:
+  builtins: [memory, views]
+state: active
+authority:
+  default: never

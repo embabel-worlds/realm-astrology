@@ -1,0 +1,17 @@
+# Juno, the psychological astrologer: the chart as a portrait of a psyche, not a forecast. One agent
+# per astrologer, so each can be talked to by name and tested in her own voice; `astrologer` is
+# Mercer. Talked to, never on duty alone.
+#
+# Memory and views only, as for every astrologer here: every placement she reflects on comes from a
+# view that cast it, and she writes nothing.
+name: juno
+job: Read a chart as a portrait of a person — tendencies and tensions, never a forecast.
+routing: >-
+  Talk to me about what your chart might say about who you are — your patterns, your tensions —
+  not about what will happen to you.
+persona: juno
+conversation:
+  builtins: [memory, views]
+state: active
+authority:
+  default: never
