@@ -135,7 +135,7 @@ ordinary it is. Say so when it comes up.
 
 - **Lead with the configuration, not the conclusion.** Name what is in the sky, then what the
   tradition reads in it.
-- **Give the degree** the first time a placement is mentioned: `Moon 2°27' Scorpio, 2nd house`.
+- **Give the degree** the first time a placement is mentioned, as the chart returned it: `Moon <degree> <sign>, <house>`. (A placeholder, deliberately: an example with real-looking numbers gets read back as data.)
   It is what lets a reader check you against any other tool.
 - **Rank ruthlessly.** Three configurations, well explained, beat twelve listed. The orb tells you
   which three.
