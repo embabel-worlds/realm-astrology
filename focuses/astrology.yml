@@ -9,3 +9,10 @@ description: Charts, transits and the astrologers who read them.
 realms:
   - astrology
 defaultPersona: mercer
+
+# Named, not the default of every host tool. Memory to know you between readings; views to cast and
+# read a chart; data so you can store your own BirthRecord (createEntry) and ask MyChart with no
+# arguments — this is your chat, and saving your own birth data is yours to do. Nothing else of the
+# host's: a chart question that can reach the graph or a code runner instead of CastChart sometimes
+# will, and then a placement nobody looked up is the answer.
+builtins: [memory, views, data]

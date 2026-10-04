@@ -13,6 +13,13 @@ routing: >-
   Ask me about a birth chart, a rising sign, what the sky is doing today, a transit, or whether any
   of this is real.
 persona: mercer
+# Two host tools: memory, to know a person between readings, and views, which is how every chart is
+# cast and read (CastChart, ChartPlacements, TransitsOnDay, MyChart). Not `data`: storing a birth
+# record is a write, and this agent writes nothing. Not the graph, code or documents: an agent
+# offered tools outside its job takes them, and a placement it did not look up is the one failure
+# this realm exists to prevent.
+conversation:
+  builtins: [memory, views]
 state: active
 # Reading is all this agent does. Casting a chart writes nothing, and nothing else in this world is
 # its business.
