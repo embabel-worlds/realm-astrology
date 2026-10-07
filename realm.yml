@@ -35,6 +35,7 @@ author: Rod Johnson
 # docker, not wasm: the ephemeris and the house engine are npm dependencies bundled into the
 # handler, and that is what makes a chart need no network.
 host: docker
+category: lifestyle
 tags:
   - astrology
   - astronomy
