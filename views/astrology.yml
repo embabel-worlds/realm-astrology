@@ -8,7 +8,10 @@
 # "add a person" step before a chart can be cast.
 
 - name: FindBirthplace
-  description: Places matching a name, with coordinates and the IANA time zone a chart needs. Several rows per name is normal — there are three Melbournes — so pick the right one before casting.
+  description: >-
+    Places matching a name, with coordinates and the IANA time zone a chart needs. Several rows per
+    name is normal — there are three Melbournes — so pick the right one before casting; this view
+    does not pick for you.
   params:
     place:
       type: string
@@ -22,7 +25,10 @@
     ORDER BY coalesce(p.population, 0) DESC
 
 - name: CastChart
-  description: A natal chart from birth data — Sun, Moon and rising sign, the angles, the Moon's phase, and what the chart cannot say. Leave bornAt empty if the birth time is unknown and it returns a chart with no houses rather than inventing them.
+  description: >-
+    A natal chart from birth data: Sun, Moon and rising sign, and the angles. Also the Moon's phase,
+    and what the chart cannot say. Leave bornAt empty if the birth time is unknown and it returns a
+    chart with no houses rather than inventing them.
   params:
     bornOn:
       type: string
@@ -67,7 +73,10 @@
            c.engineAgreementArcmin AS enginesAgreeToArcmin
 
 - name: ChartPlacements
-  description: Every body in a chart — sign, exact degree, house and retrograde — in zodiacal order. The degree is what lets you check this against any other tool.
+  description: >-
+    Every body in a chart: sign, exact degree, house, retrograde. In zodiacal order, Sun to Pluto
+    only (no nodes, asteroids or lots). The degree is what lets you check this against any other
+    tool.
   params:
     bornOn: { type: string, default: "1962-05-17", description: "Local birth date, YYYY-MM-DD." }
     bornAt: { type: string, default: "14:30", description: "Local birth time, HH:mm. Ignored when `timeKnown` is false." }
@@ -89,7 +98,9 @@
     ORDER BY p.longitude
 
 - name: ChartAspects
-  description: The aspects in a chart, tightest first — the configurations that actually dominate it. Majors only by default; the orb says how much weight each carries.
+  description: >-
+    The aspects in a chart, tightest first. The configurations that actually dominate it. Majors
+    only by default, and only within `maxOrb`; the orb says how much weight each carries.
   params:
     bornOn: { type: string, default: "1962-05-17", description: "Local birth date, YYYY-MM-DD." }
     bornAt: { type: string, default: "14:30", description: "Local birth time, HH:mm. Ignored when `timeKnown` is false." }
@@ -171,7 +182,9 @@
     ORDER BY t.orb
 
 - name: SkyAtMoment
-  description: Where every body was at one instant, with no chart involved. This is the hop that gives anything with a timestamp a sky over it.
+  description: >-
+    Where every body was at one instant, with no chart involved. This is the hop that gives anything
+    with a timestamp a sky over it. Positions only: no houses or angles, which need a place.
   params:
     instant:
       type: string
@@ -185,7 +198,10 @@
     ORDER BY p.longitude
 
 - name: AuditAgainstNasa
-  description: This realm's own arithmetic, checked live against NASA JPL Horizons, body by body, in arcseconds. Ten requests against a paced source, cached for a year afterwards. Filter to one body and it asks for one.
+  description: >-
+    This realm's positions, checked live against NASA JPL Horizons, per body. In arcseconds. Ten
+    requests against a paced source, cached for a year afterwards. Filter to one body and it asks
+    for only that one.
   params:
     bornOn: { type: string, default: "1962-05-17", description: "Local birth date, YYYY-MM-DD." }
     bornAt: { type: string, default: "14:30", description: "Local birth time, HH:mm. Ignored when `timeKnown` is false." }

@@ -1,6 +1,6 @@
 {
   "name": "realm-astrology",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Natal charts, transits and the astrologers who read them, as an Embabel realm",
   "license": "Apache-2.0",

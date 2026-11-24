@@ -20,9 +20,9 @@
 
 - name: BuildsUnderMercuryRetrograde
   description: >-
-    Whether your CI really does fail more when Mercury is retrograde, with the base rate beside it.
-    Mercury is retrograde about a fifth of the time, so compare the two failure rates — not the raw
-    counts. This is a joke with a correct denominator, which is the only kind worth telling.
+    Whether CI fails more when Mercury is retrograde, base rate beside it. Mercury is retrograde
+    about a fifth of the time, so compare the two failure rates — not the raw counts. This is a joke
+    with a correct denominator, which is the only kind worth telling. Completed runs only.
   params:
     repo:
       type: string
@@ -46,9 +46,9 @@
 
 - name: BuildFailuresByMoonPhase
   description: >-
-    Your failed builds by the Moon's phase, with how many builds ran in each phase so the rate is
-    visible. Eight phases means eight small buckets: expect noise, and expect the largest bucket to
-    look meaningful when it is just the biggest.
+    Failed builds by the Moon's phase, with builds run per phase. So the rate is visible. Completed
+    runs only. Eight phases means eight small buckets: expect noise, and expect the largest bucket
+    to look meaningful when it is just the biggest.
   params:
     repo:
       type: string
@@ -68,8 +68,9 @@
 
 - name: SkyWhenThisHappened
   description: >-
-    The sky over one moment you already have a timestamp for — the general form of the join. Paste
-    any ISO instant from any realm's data and this gives you the figure above it.
+    The sky over one moment you already have a timestamp for. The general form of the join. Paste
+    any ISO instant from any realm's data and this gives you the figure above it; positions only, no
+    chart.
   params:
     instant:
       type: string
