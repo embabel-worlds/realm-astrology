@@ -47,7 +47,10 @@ def problem(env):
     if env.get("_http") or env.get("status") != "SUCCEEDED":
         err = env.get("error")
         msg = err.get("message") if isinstance(err, dict) else err
-        return f"{env.get('_http', '')} {env.get('status', '')} {str(msg or '')[:200]}".strip()
+        # The warnings name the source that failed and how; the message alone does not.
+        why = "; ".join(str(w.get("message") or w.get("code") or w)[:240] if isinstance(w, dict) else str(w)[:240]
+                        for w in env.get("warnings") or [])
+        return f"{env.get('_http', '')} {env.get('status', '')} {str(msg or '')[:200]}{(' | ' + why) if why else ''}".strip()
     return None
 
 
