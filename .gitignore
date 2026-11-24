@@ -3,3 +3,6 @@ node_modules/
 .DS_Store
 test-results/
 playwright-report/
+
+# Bytecode from the Python battery.
+__pycache__/
