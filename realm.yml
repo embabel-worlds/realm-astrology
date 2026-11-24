@@ -23,7 +23,7 @@ description: |
   chart — so the numbers are checkable rather than merely confident.
 
   Keyless. Nothing to configure.
-version: 0.1.1
+version: 0.1.2
 
 # Experimental: the computation is verified against NASA and against astro-seek's published
 # charts, but the realm is new, nothing has been read in anger yet, and the astrologers' readings
