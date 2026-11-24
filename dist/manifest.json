@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-11-24T20:51:38.302Z",
+  "generatedAt": "2026-11-24T21:11:52.817Z",
   "entries": [
     {
       "namespace": "astrology",
@@ -81,7 +81,14 @@
           },
           "metrics": {
             "type": "object",
-            "properties": {}
+            "properties": {},
+            "additionalProperties": {
+              "type": [
+                "string",
+                "number",
+                "boolean"
+              ]
+            }
           },
           "advocacyStopped": {
             "type": "boolean"
@@ -228,7 +235,10 @@
                   "type": "string"
                 },
                 "time": {
-                  "type": "string"
+                  "type": [
+                    "string",
+                    "null"
+                  ]
                 },
                 "latitude": {
                   "type": "number"
@@ -857,7 +867,7 @@
             }
           },
           "bodies": {
-            "oneOf": [
+            "anyOf": [
               {
                 "type": "string"
               },

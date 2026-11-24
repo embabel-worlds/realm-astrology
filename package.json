@@ -1,13 +1,13 @@
 {
   "name": "realm-astrology",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "private": true,
   "description": "Natal charts, transits and the astrologers who read them, as an Embabel realm",
   "license": "Apache-2.0",
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "build": "node scripts/build.mjs && embabel-build-manifest && node scripts/manifest-booleans.mjs",
+    "build": "node scripts/build.mjs && embabel-build-manifest",
     "check": "npm run typecheck && npm run build && npm test && npm run test:app",
     "test:app": "playwright test"
   },
