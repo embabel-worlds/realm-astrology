@@ -56,7 +56,7 @@ for body, hid in HORIZONS_ID.items():
 env = invoke("AuditAgainstNasa")
 rows = env.get("data") or []
 check("AuditAgainstNasa: ten bodies audited", len(rows) == 10 and not problem(env), problem(env) or f"{len(rows)} rows")
-disagree = [r for r in rows if r.get("agrees") is not True]
+disagree = [r for r in rows if r.get("withinTolerance") is not True]
 check("AuditAgainstNasa: every body agrees", rows and not disagree, json.dumps(disagree)[:300])
 
 print("== L3: a one-body audit asks NASA about one body")

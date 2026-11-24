@@ -35,6 +35,11 @@ author: Rod Johnson
 # docker, not wasm: the ephemeris and the house engine are npm dependencies bundled into the
 # handler, and that is what makes a chart need no network.
 host: docker
+# readChart and askAstrologer put a prompt to the owner's model. A host that runs the handlers
+# captured lets a handler do that only when the realm asks for the model here and the owner grants
+# it at install; without it every reading is refused before the prompt is sent.
+capabilities:
+  - model
 category: lifestyle
 tags:
   - astrology
