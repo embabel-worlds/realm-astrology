@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-10-03T19:19:34.864Z",
+  "generatedAt": "2026-11-24T20:51:38.302Z",
   "entries": [
     {
       "namespace": "astrology",
@@ -152,14 +152,7 @@
               "type": "number"
             },
             "applying": {
-              "oneOf": [
-                {
-                  "type": "undefined"
-                },
-                {
-                  "type": "undefined"
-                }
-              ]
+              "type": "boolean"
             },
             "fromPosition": {
               "type": "string"
@@ -817,14 +810,7 @@
               "type": "number"
             },
             "applying": {
-              "oneOf": [
-                {
-                  "type": "undefined"
-                },
-                {
-                  "type": "undefined"
-                }
-              ]
+              "type": "boolean"
             },
             "transitingPosition": {
               "type": "string"
@@ -915,27 +901,13 @@
               "type": "number"
             },
             "agrees": {
-              "oneOf": [
-                {
-                  "type": "undefined"
-                },
-                {
-                  "type": "undefined"
-                }
-              ]
+              "type": "boolean"
             },
             "sign": {
               "type": "string"
             },
             "sameSign": {
-              "oneOf": [
-                {
-                  "type": "undefined"
-                },
-                {
-                  "type": "undefined"
-                }
-              ]
+              "type": "boolean"
             },
             "note": {
               "type": "string"

@@ -30,29 +30,48 @@ import { degreeInSign, parseMoment, parseReadingKey, parseTransitDay, position, 
 const chartsFor = (specs: string[] | undefined): Chart[] =>
   (specs ?? []).map((s) => chartOf(parseMoment(s)));
 
+/*
+ * A record as the code builds it, where a field with no value is null: every optional field of
+ * the record, present, and possibly null.
+ */
+type Built<T> = { [K in keyof T]-?: undefined extends T[K] ? Exclude<T[K], undefined> | null : T[K] };
+
+/*
+ * The wire form of records: a field with no value is LEFT OUT rather than sent as null.
+ *
+ * The host checks every handler's output against the schema in dist/manifest.json, and that
+ * schema is generated from these interfaces, where a field that can be absent is optional
+ * (`risingSign?: string`). The generator renders `string | null` as plain `string`, and
+ * `boolean | null` as a schema the host cannot read at all, so a null sent on the wire is a
+ * refused call. An omitted field reads as null in a query all the same.
+ */
+function wire<T>(rows: Built<T>[]): T[] {
+  return rows.map((r) => Object.fromEntries(Object.entries(r as object).filter(([, v]) => v !== null && v !== undefined)) as T);
+}
+
 export interface NatalChartRecord {
   spec: string;
   utc: string;
   timeKnown: boolean;
   sunSign: string;
   moonSign: string;
-  risingSign: string | null;
-  ascendant: string | null;
-  midheaven: string | null;
-  ascendantLongitude: number | null;
-  midheavenLongitude: number | null;
-  houseSystem: string | null;
+  risingSign?: string;
+  ascendant?: string;
+  midheaven?: string;
+  ascendantLongitude?: number;
+  midheavenLongitude?: number;
+  houseSystem?: string;
   moonPhase: string;
   moonIlluminated: number;
   /** Non-null when Placidus was abandoned for the latitude. Belongs in front of the reader. */
-  degradedReason: string | null;
+  degradedReason?: string;
   ascendantUnstable: boolean;
   /** How far this realm's two ephemerides disagreed, arcminutes. Its own accuracy, as data. */
-  engineAgreementArcmin: number | null;
-  crossCheckMaxArcmin: number | null;
+  engineAgreementArcmin?: number;
+  crossCheckMaxArcmin?: number;
   /** A defensible alternative zone for these coordinates, where one exists. */
-  tzAmbiguity: string | null;
-  moonUncertaintyDegrees: number | null;
+  tzAmbiguity?: string;
+  moonUncertaintyDegrees?: number;
   moonSignAmbiguous: boolean;
   /** What this chart cannot say, and why: empty when the birth time is known. */
   unavailable: string[];
@@ -63,7 +82,7 @@ export async function natalChart(
   _ctx: GenericGatewayContext,
   args: { specs: string[] },
 ): Promise<NatalChartRecord[]> {
-  return chartsFor(args.specs).map((c) => ({
+  return wire<NatalChartRecord>(chartsFor(args.specs).map((c) => ({
     spec: c.spec,
     utc: c.utc.toISOString(),
     timeKnown: c.timeKnown,
@@ -85,7 +104,7 @@ export async function natalChart(
     moonUncertaintyDegrees: c.moonUncertaintyDegrees,
     moonSignAmbiguous: c.moonSignAmbiguous,
     unavailable: c.unavailable.map((u) => `${u.field}: ${u.reason}`),
-  }));
+  })));
 }
 
 export interface PlacementRecord {
@@ -97,7 +116,7 @@ export interface PlacementRecord {
   sign: string;
   degreeInSign: number;
   position: string;
-  house: number | null;
+  house?: number;
   retrograde: boolean;
   dailyMotion: number;
 }
@@ -107,7 +126,7 @@ export async function placements(
   _ctx: GenericGatewayContext,
   args: { specs: string[] },
 ): Promise<PlacementRecord[]> {
-  return chartsFor(args.specs).flatMap((c) =>
+  return wire<PlacementRecord>(chartsFor(args.specs).flatMap((c) =>
     c.placements.map((p) => ({
       placementId: `${c.spec}|${p.body}`,
       spec: c.spec,
@@ -121,7 +140,7 @@ export async function placements(
       retrograde: p.retrograde,
       dailyMotion: Number(p.dailyMotion.toFixed(5)),
     })),
-  );
+  ));
 }
 
 export interface AspectRecord {
@@ -134,7 +153,7 @@ export interface AspectRecord {
   orb: number;
   orbAllowed: number;
   strength: number;
-  applying: boolean | null;
+  applying?: boolean;
   fromPosition: string;
   toPosition: string;
 }
@@ -144,7 +163,7 @@ export async function aspects(
   _ctx: GenericGatewayContext,
   args: { specs: string[] },
 ): Promise<AspectRecord[]> {
-  return chartsFor(args.specs).flatMap((c) =>
+  return wire<AspectRecord>(chartsFor(args.specs).flatMap((c) =>
     natalAspects(c).map((a) => ({
       aspectId: `${c.spec}|${a.transiting}-${a.aspect}-${a.natal}`,
       spec: c.spec,
@@ -159,7 +178,7 @@ export async function aspects(
       fromPosition: a.transitingPosition,
       toPosition: a.natalPosition,
     })),
-  );
+  ));
 }
 
 export interface HouseCuspRecord {
@@ -179,7 +198,7 @@ export async function houseCusps(
   _ctx: GenericGatewayContext,
   args: { specs: string[] },
 ): Promise<HouseCuspRecord[]> {
-  const out: HouseCuspRecord[] = [];
+  const out: Built<HouseCuspRecord>[] = [];
   for (const c of chartsFor(args.specs)) {
     for (let i = 0; i < c.cusps.length; i++) {
       const lon = c.cusps[i] as number;
@@ -196,7 +215,7 @@ export async function houseCusps(
       });
     }
   }
-  return out;
+  return wire(out);
 }
 
 export interface TransitRecord {
@@ -211,11 +230,11 @@ export interface TransitRecord {
   major: boolean;
   orb: number;
   strength: number;
-  applying: boolean | null;
+  applying?: boolean;
   transitingPosition: string;
   transitingRetrograde: boolean;
   natalPosition: string;
-  throughHouse: number | null;
+  throughHouse?: number;
 }
 
 /*
@@ -227,7 +246,7 @@ export async function transits(
   _ctx: GenericGatewayContext,
   args: { specs: string[] },
 ): Promise<TransitRecord[]> {
-  const out: TransitRecord[] = [];
+  const out: Built<TransitRecord>[] = [];
   for (const raw of args.specs ?? []) {
     const day = parseTransitDay(raw);
     const chart = chartOf(day.moment);
@@ -252,7 +271,7 @@ export async function transits(
       });
     }
   }
-  return out;
+  return wire(out);
 }
 
 export interface SkyPositionRecord {
@@ -278,7 +297,7 @@ export async function skyAt(
   _ctx: GenericGatewayContext,
   args: { instants: string[] },
 ): Promise<SkyPositionRecord[]> {
-  const out: SkyPositionRecord[] = [];
+  const out: Built<SkyPositionRecord>[] = [];
   for (const raw of args.instants ?? []) {
     const instant = raw.trim();
     const at = new Date(instant);
@@ -300,7 +319,7 @@ export async function skyAt(
       });
     }
   }
-  return out;
+  return wire(out);
 }
 
 /* ── The two verbs that leave the process ──────────────────────────────────────────────────── */
@@ -320,12 +339,12 @@ export interface BirthplaceRecord {
   /** The name as asked for — the key this record answers. */
   nameQueried: string;
   name: string;
-  country: string | null;
-  region: string | null;
+  country?: string;
+  region?: string;
   latitude: number;
   longitude: number;
   timeZone: string;
-  population: number | null;
+  population?: number;
   /** The key to cast a chart with, once a birth date and time are added in front of it. */
   specFragment: string;
 }
@@ -344,7 +363,7 @@ export async function resolveBirthplace(
 ): Promise<BirthplaceRecord[]> {
   const api = (ctx as unknown as GeocodingGateway).openMeteoGeocoding;
   const count = Math.min(Math.max(args.count ?? 5, 1), 20);
-  const out: BirthplaceRecord[] = [];
+  const out: Built<BirthplaceRecord>[] = [];
   for (const raw of args.names ?? []) {
     const nameQueried = raw.trim();
     if (!nameQueried) continue;
@@ -364,7 +383,7 @@ export async function resolveBirthplace(
       });
     }
   }
-  return out;
+  return wire(out);
 }
 
 interface HorizonsGateway {
@@ -380,15 +399,15 @@ export interface NasaCheckRecord {
   /** The instant checked — the chart's UTC moment, to the second. */
   utc: string;
   ourLongitude: number;
-  nasaLongitude: number | null;
+  nasaLongitude?: number;
   /** How far apart, in arcseconds. Null when NASA could not be reached or gave no row. */
-  agreementArcsec: number | null;
+  agreementArcsec?: number;
   /** Did the two agree inside the stated tolerance? Null means the check could not be made. */
-  agrees: boolean | null;
+  agrees?: boolean;
   sign: string;
   /** The same sign either way? A disagreement that crosses a sign boundary is the one that matters. */
-  sameSign: boolean | null;
-  note: string | null;
+  sameSign?: boolean;
+  note?: string;
 }
 
 /*
@@ -420,7 +439,7 @@ export async function verifyAgainstNasa(
   const asked = Array.isArray(args.bodies) ? args.bodies : typeof args.bodies === "string" ? [args.bodies] : [];
   const wanted = asked.filter((b) => b in HORIZONS_ID);
   const bodies = wanted.length ? wanted : [...BODIES];
-  const out: NasaCheckRecord[] = [];
+  const out: Built<NasaCheckRecord>[] = [];
   for (const chart of chartsFor(args.specs)) {
     for (const body of bodies) {
       const ours = chart.placements.find((p) => p.body === body);
@@ -454,13 +473,13 @@ export async function verifyAgainstNasa(
       });
     }
   }
-  return out;
+  return wire(out);
 }
 
 export interface BirthSpecRecord {
   spec: string;
   date: string;
-  time: string | null;
+  time?: string;
   latitude: number;
   longitude: number;
   timeZone: string;
@@ -478,7 +497,7 @@ export async function birthSpec(
   _ctx: GenericGatewayContext,
   args: { births: { date: string; time?: string | null; latitude: number; longitude: number; timeZone: string }[] },
 ): Promise<BirthSpecRecord[]> {
-  return (args.births ?? []).map((b) => {
+  return wire<BirthSpecRecord>((args.births ?? []).map((b) => {
     const when = b.time ? `${b.date}T${b.time}` : b.date;
     const m = parseMoment(`${when}|${b.latitude},${b.longitude}|${b.timeZone}`);
     return {
@@ -490,7 +509,7 @@ export async function birthSpec(
       timeZone: m.timeZone,
       timeKnown: m.time !== null,
     };
-  });
+  }));
 }
 
 /* ── The reading: a judgement, not a fact ──────────────────────────────────────────────────── */
@@ -584,9 +603,9 @@ export interface ReadingRecord {
   caveats: string[];
   sunSign: string;
   moonSign: string;
-  risingSign: string | null;
+  risingSign?: string;
   /** Which model role produced it. A reading is not reproducible; this says who to ask about it. */
-  role: string | null;
+  role?: string;
 }
 
 /*
@@ -610,7 +629,7 @@ export async function readChart(
   args: { specs: string[]; role?: string },
 ): Promise<ReadingRecord[]> {
   const ai = (ctx as unknown as AiGateway).ai;
-  const out: ReadingRecord[] = [];
+  const out: Built<ReadingRecord>[] = [];
   for (const raw of args.specs ?? []) {
     const key = parseReadingKey(raw);
     const who = bySlug(key.astrologer);
@@ -644,7 +663,7 @@ export async function readChart(
       role: args.role ?? null,
     });
   }
-  return out;
+  return wire(out);
 }
 
 /*
@@ -748,12 +767,12 @@ export interface AnswerRecord {
   /** What the chart cannot support, so an answer cannot quietly outrun its data. */
   caveats: string[];
   /** The conversation these metrics are kept against, when one was given. */
-  conversation: string | null;
+  conversation?: string;
   /**
    * The metric values after this turn. READ BACK from the world, not carried by the caller: a
    * client that supplied its own `stage` could simply assert it had been persuaded.
    */
-  metrics: MetricValues | null;
+  metrics?: MetricValues;
   /** True once the person has asked not to be persuaded. Latches for the conversation. */
   advocacyStopped: boolean;
   /**
@@ -761,7 +780,7 @@ export interface AnswerRecord {
    * is quietly broken looks exactly like one with nothing to remember, which is how the first
    * version of this shipped with persistence that never once worked.
    */
-  metricsProblem: string | null;
+  metricsProblem?: string;
 }
 
 /*
@@ -953,7 +972,7 @@ medical, legal or financial advice however it is asked for.`;
 
   const reply = (typeof answer === "string" ? answer : JSON.stringify(answer)).trim();
 
-  return {
+  return wire<AnswerRecord>([{
     chartSpec: chart.spec,
     astrologer: who.slug,
     astrologerName: who.name,
@@ -964,7 +983,7 @@ medical, legal or financial advice however it is asked for.`;
     metrics: values,
     advocacyStopped: stopped,
     metricsProblem: problem,
-  };
+  }])[0]!;
 }
 
 export interface AstrologerRecord {

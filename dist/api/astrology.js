@@ -30,9 +30,9 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
 ));
 var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
-// node_modules/circular-natal-horoscope-js/dist/index.js
+// ../../../../../../../../Users/rjohnson/embabel/worlds/realms/realm-astrology/node_modules/circular-natal-horoscope-js/dist/index.js
 var require_dist = __commonJS({
-  "node_modules/circular-natal-horoscope-js/dist/index.js"(exports2, module2) {
+  "../../../../../../../../Users/rjohnson/embabel/worlds/realms/realm-astrology/node_modules/circular-natal-horoscope-js/dist/index.js"(exports2, module2) {
     module2.exports = (function(e) {
       var a = {};
       function t(n) {
@@ -5274,10 +5274,10 @@ __export(astrology_exports, {
 });
 module.exports = __toCommonJS(astrology_exports);
 
-// node_modules/deepnatal/dist/ephemeris.js
+// ../../../../../../../../Users/rjohnson/embabel/worlds/realms/realm-astrology/node_modules/deepnatal/dist/ephemeris.js
 var import_circular_natal_horoscope_js = __toESM(require_dist(), 1);
 
-// node_modules/astronomy-engine/esm/astronomy.js
+// ../../../../../../../../Users/rjohnson/embabel/worlds/realms/realm-astrology/node_modules/astronomy-engine/esm/astronomy.js
 var C_AUDAY = 173.1446326846693;
 var KM_PER_AU = 14959787069098932e-8;
 var DEG2RAD = 0.017453292519943295;
@@ -7492,7 +7492,7 @@ var NodeEventKind;
   NodeEventKind2[NodeEventKind2["Descending"] = -1] = "Descending";
 })(NodeEventKind || (NodeEventKind = {}));
 
-// node_modules/deepnatal/dist/ephemeris.js
+// ../../../../../../../../Users/rjohnson/embabel/worlds/realms/realm-astrology/node_modules/deepnatal/dist/ephemeris.js
 var { Origin, Horoscope } = import_circular_natal_horoscope_js.default;
 var PLACIDUS_LAT_LIMIT = 66;
 var CROSS_CHECK_TOLERANCE_ARCMIN = 15;
@@ -8384,8 +8384,11 @@ function parseJsonObject(text) {
 
 // src/api/astrology.ts
 var chartsFor = (specs) => (specs ?? []).map((s) => chartOf(parseMoment(s)));
+function wire(rows) {
+  return rows.map((r) => Object.fromEntries(Object.entries(r).filter(([, v]) => v !== null && v !== void 0)));
+}
 async function natalChart(_ctx, args) {
-  return chartsFor(args.specs).map((c) => ({
+  return wire(chartsFor(args.specs).map((c) => ({
     spec: c.spec,
     utc: c.utc.toISOString(),
     timeKnown: c.timeKnown,
@@ -8407,10 +8410,10 @@ async function natalChart(_ctx, args) {
     moonUncertaintyDegrees: c.moonUncertaintyDegrees,
     moonSignAmbiguous: c.moonSignAmbiguous,
     unavailable: c.unavailable.map((u) => `${u.field}: ${u.reason}`)
-  }));
+  })));
 }
 async function placements(_ctx, args) {
-  return chartsFor(args.specs).flatMap(
+  return wire(chartsFor(args.specs).flatMap(
     (c) => c.placements.map((p) => ({
       placementId: `${c.spec}|${p.body}`,
       spec: c.spec,
@@ -8424,10 +8427,10 @@ async function placements(_ctx, args) {
       retrograde: p.retrograde,
       dailyMotion: Number(p.dailyMotion.toFixed(5))
     }))
-  );
+  ));
 }
 async function aspects(_ctx, args) {
-  return chartsFor(args.specs).flatMap(
+  return wire(chartsFor(args.specs).flatMap(
     (c) => natalAspects(c).map((a) => ({
       aspectId: `${c.spec}|${a.transiting}-${a.aspect}-${a.natal}`,
       spec: c.spec,
@@ -8442,7 +8445,7 @@ async function aspects(_ctx, args) {
       fromPosition: a.transitingPosition,
       toPosition: a.natalPosition
     }))
-  );
+  ));
 }
 async function houseCusps(_ctx, args) {
   const out = [];
@@ -8462,7 +8465,7 @@ async function houseCusps(_ctx, args) {
       });
     }
   }
-  return out;
+  return wire(out);
 }
 async function transits(_ctx, args) {
   const out = [];
@@ -8490,7 +8493,7 @@ async function transits(_ctx, args) {
       });
     }
   }
-  return out;
+  return wire(out);
 }
 async function skyAt2(_ctx, args) {
   const out = [];
@@ -8515,7 +8518,7 @@ async function skyAt2(_ctx, args) {
       });
     }
   }
-  return out;
+  return wire(out);
 }
 async function resolveBirthplace(ctx, args) {
   const api = ctx.openMeteoGeocoding;
@@ -8540,7 +8543,7 @@ async function resolveBirthplace(ctx, args) {
       });
     }
   }
-  return out;
+  return wire(out);
 }
 var TOLERANCE_ARCSEC = 60;
 async function verifyAgainstNasa(ctx, args) {
@@ -8573,10 +8576,10 @@ async function verifyAgainstNasa(ctx, args) {
       });
     }
   }
-  return out;
+  return wire(out);
 }
 async function birthSpec(_ctx, args) {
-  return (args.births ?? []).map((b) => {
+  return wire((args.births ?? []).map((b) => {
     const when = b.time ? `${b.date}T${b.time}` : b.date;
     const m = parseMoment(`${when}|${b.latitude},${b.longitude}|${b.timeZone}`);
     return {
@@ -8588,7 +8591,7 @@ async function birthSpec(_ctx, args) {
       timeZone: m.timeZone,
       timeKnown: m.time !== null
     };
-  });
+  }));
 }
 var conversationKey = (persona, conversation) => `${persona}|${conversation}`;
 async function loadMetrics(ctx, who, conversation) {
@@ -8668,7 +8671,7 @@ async function readChart(ctx, args) {
       role: args.role ?? null
     });
   }
-  return out;
+  return wire(out);
 }
 function caveatsOf(chart) {
   const out = [];
@@ -8857,7 +8860,7 @@ medical, legal or financial advice however it is asked for.`;
     ...args.role ? { role: args.role } : {}
   });
   const reply = (typeof answer === "string" ? answer : JSON.stringify(answer)).trim();
-  return {
+  return wire([{
     chartSpec: chart.spec,
     astrologer: who.slug,
     astrologerName: who.name,
@@ -8868,7 +8871,7 @@ medical, legal or financial advice however it is asked for.`;
     metrics: values,
     advocacyStopped: stopped,
     metricsProblem: problem
-  };
+  }])[0];
 }
 async function astrologers(_ctx, _args) {
   return personas().map(({ slug, name, tagline, isDefault }) => ({ slug, name, tagline, isDefault }));
