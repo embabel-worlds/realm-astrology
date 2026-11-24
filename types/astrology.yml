@@ -89,7 +89,7 @@
       description: "Who this is: `self`, or a name you will recognise. Identity."
     chartSpec: "The birth key — the value every chart hop joins on."
     bornOn: "Local birth date, YYYY-MM-DD."
-    bornAt: "Local birth time, HH:mm, 24-hour. Absent when unknown."
+    bornAt: "Birth time as the local wall-clock time at the birthplace, HH:mm, 24-hour (not UTC). Absent when unknown."
     timeKnown:
       type: boolean
       description: "False when the birth time is not known, so the chart has no houses or ascendant."
@@ -109,7 +109,7 @@
 - name: NatalChart
   userAnchor: false
   description: >-
-    One chart: the signs that matter most (Sun, Moon, rising), the two angles, and — unusually —
+    One chart, keyed by the birth key it was cast from (`spec`): the signs that matter most (Sun, Moon, rising), the two angles, and — unusually —
     what the chart cannot say. `engineAgreementArcmin` is how far this realm's two independent
     ephemerides disagreed, `degradedReason` says when Placidus had to be abandoned for the
     latitude, `tzAmbiguity` names a defensible alternative zone, and `moonSignAmbiguous` warns
@@ -138,8 +138,8 @@
     timeKnown:
       type: boolean
       description: "False when no birth time was given: no ascendant, no houses."
-    sunSign: "The Sun's sign."
-    moonSign: "The Moon's sign."
+    sunSign: "The tropical zodiac sign the Sun is in, e.g. `Taurus` — the 'star sign' of popular use."
+    moonSign: "The tropical zodiac sign the Moon is in, e.g. `Cancer`; see moonSignAmbiguous when the birth time is unknown."
     risingSign: "The ascendant's sign. Null without a birth time."
     ascendant: "The ascendant, e.g. `18°24' Sagittarius`. Null without a birth time."
     midheaven: "The midheaven. Null without a birth time."
@@ -150,7 +150,9 @@
       type: float
       description: "Ecliptic longitude of the midheaven, degrees."
     houseSystem: "`placidus`, or `whole-sign` where Placidus degenerated."
-    moonPhase: "The Moon's phase that day, e.g. `waxing gibbous`."
+    moonPhase:
+      description: "The Moon's phase that day, one of the eight octants by elongation from the Sun; `full moon` and `new moon` are each about a day wide."
+      values: ["new moon", "waxing crescent", "first quarter", "waxing gibbous", "full moon", "waning gibbous", "last quarter", "waning crescent"]
     moonIlluminated:
       type: float
       description: "Fraction of the Moon lit, 0 to 1."
@@ -178,7 +180,7 @@
 - name: Placement
   userAnchor: false
   description: >-
-    One body in one chart: its sign, its degree, its house, and whether it was retrograde.
+    One body in one chart, keyed `<birth key>|<body>` (placementId): its sign, its degree, its house, and whether it was retrograde.
     `position` is the form a published chart states (`26°09' Taurus`), so a reader can compare
     this against another tool by eye. Longitudes come from astronomy-engine, which agrees with
     NASA JPL Horizons to under an arcsecond on a planet.
@@ -188,7 +190,7 @@
       keyField: spec
       recordKeyField: spec
       producer: placements
-      description: "Every body in this chart."
+      description: "Every body (Sun to Pluto) placed in this chart, with sign, degree, house and retrograde — the hop for 'where is Venus in this chart' or 'what is in the tenth house'."
     - anchorLabel: BirthRecord
       relationship: HAS_PLACEMENT
       keyField: chartSpec
@@ -221,11 +223,32 @@
     dailyMotion:
       type: float
       description: "Degrees of longitude per day, signed. Negative is retrograde."
+  examples:
+    - q: "where is Venus in the chart of someone born 17 May 1962 at 14:30 in London"
+      cypher: |
+        MATCH (b:BirthMoment {spec: '1962-05-17T14:30|51.5074,-0.1278|Europe/London'})-[:HAS_PLACEMENT]->(p:Placement)
+        WHERE p.body = 'Venus'
+        RETURN p.position AS position, p.house AS house, p.retrograde AS retrograde
+    - q: "which planets were retrograde at a birth with no known time"
+      cypher: |
+        MATCH (b:BirthMoment {spec: '1962-05-17|51.5074,-0.1278|Europe/London'})-[:HAS_PLACEMENT]->(p:Placement)
+        WHERE p.retrograde
+        RETURN p.body AS body, p.position AS position
+    - q: "what sign was Mercury in, and was it retrograde, at a given instant"
+      cypher: |
+        MATCH (s:SkyMoment {instant: '2026-10-02T21:00:00Z'})-[:HAS_POSITION]->(p:SkyPosition)
+        WHERE p.body = 'Mercury'
+        RETURN p.sign AS sign, p.retrograde AS retrograde
+    - q: "how closely does the Mars position agree with NASA for this chart"
+      cypher: |
+        MATCH (b:BirthMoment {spec: '1962-05-17T14:30|51.5074,-0.1278|Europe/London'})-[:VERIFIED_BY]->(c:NasaCheck)
+        WHERE c.body = 'Mars'
+        RETURN c.agreementArcsec AS arcsec, c.agrees AS agrees
 
 - name: ChartAspect
   userAnchor: false
   description: >-
-    Two points in one chart standing at an angle the tradition reads. `orb` is how far from exact,
+    Two points in one chart standing at an angle the tradition reads, keyed `<birth key>|<from>-<aspect>-<to>` (aspectId). `orb` is how far from exact,
     `orbAllowed` is how wide the net was set — stated, because the orb is a judgement an astrologer
     makes and not a constant. `major` marks the Ptolemaic five; `applying` says the angle was still
     closing at birth.
@@ -271,7 +294,7 @@
 - name: HouseCusp
   userAnchor: false
   description: >-
-    One of the twelve cusps. `span` is how much ecliptic the house covers: Placidus houses are
+    One of the twelve house cusps of one chart, keyed `<birth key>|<house number>` (cuspId). `span` is how much ecliptic the house covers: Placidus houses are
     unequal, and a 60° house at a high latitude is the sort of thing a chart wheel hides and a
     number does not. A chart cast without a birth time has no cusps and returns nothing.
   virtualJoins:
@@ -294,7 +317,7 @@
     spec: "The birth key."
     house:
       type: int
-      description: "1 to 12."
+      description: "Which house this cusp begins, 1 to 12; the 1st cusp is the ascendant and the 10th the midheaven."
     longitude:
       type: float
       description: "Ecliptic longitude of the cusp, degrees."
@@ -312,7 +335,7 @@
 - name: Transit
   userAnchor: false
   description: >-
-    The live sky making an angle to a point in a natal chart, on a given day. `throughHouse` is the
+    One transit: the live sky making an angle to a point in a natal chart on a given day, keyed `<birth key>@<date>|<transiting>-<aspect>-<natal>` (transitId). `throughHouse` is the
     natal house the transiting body is crossing. Tightest orb first. A chart with no birth time has
     no angles and no houses, so its transit list is shorter and says less — correctly.
   virtualJoins:
@@ -356,7 +379,7 @@
 - name: SkyPosition
   userAnchor: false
   description: >-
-    Where a body was at one instant, with no chart involved. Pin a SkyMoment and join it to
+    Where one body was at one instant, with no chart involved, keyed `<instant>|<body>` (positionId). Pin a SkyMoment and join it to
     anything timestamped: this is what lets a query ask what the sky was doing when a build failed
     or a deal closed. Any pattern found that way is a coincidence, and a view that reports one
     should say so.
@@ -366,13 +389,13 @@
       keyField: instant
       recordKeyField: instant
       producer: skyAt
-      description: "Every body at this instant."
+      description: "Every body (Sun to Pluto) at this instant, with sign and longitude, no chart involved — the hop for 'where was Mercury when this happened' or 'was Mercury retrograde then'."
   properties:
     positionId:
       identity: true
       description: "`<instant>|<body>`. Identity."
     instant: "The ISO instant this position is for."
-    body: "The body."
+    body: "Which body this row is: `Sun`, `Moon`, `Mercury`, `Venus`, `Mars`, `Jupiter`, `Saturn`, `Uranus`, `Neptune` or `Pluto`."
     longitude:
       type: float
       description: "Apparent geocentric ecliptic longitude, degrees."
@@ -387,7 +410,9 @@
     dailyMotion:
       type: float
       description: "Degrees per day, signed."
-    moonPhase: "The Moon's phase at this instant — the same for every row of one instant."
+    moonPhase:
+      description: "The Moon's phase at this instant, one of the eight octants by elongation from the Sun — the same for every row of one instant."
+      values: ["new moon", "waxing crescent", "first quarter", "waxing gibbous", "full moon", "waning gibbous", "last quarter", "waning crescent"]
     moonIlluminated:
       type: float
       description: "Fraction of the Moon lit, 0 to 1."
@@ -414,14 +439,14 @@
       description: "`<name asked>|<lat>,<lon>`. Identity."
     nameQueried: "The name this record was found for."
     name: "The place's own name."
-    country: "Country."
+    country: "The country the place is in, as the gazetteer names it, e.g. `Australia`."
     region: "First-level region, where there is one."
     latitude:
       type: float
-      description: "Latitude."
+      description: "The place's latitude in decimal degrees, north positive (WGS84)."
     longitude:
       type: float
-      description: "Longitude."
+      description: "The place's longitude in decimal degrees, east positive (WGS84)."
     timeZone: "IANA zone. The field that decides a rising sign."
     population:
       type: int
@@ -431,7 +456,7 @@
 - name: NasaCheck
   userAnchor: false
   description: >-
-    This realm's arithmetic, audited against NASA JPL Horizons, live, for one body in one chart.
+    This realm's arithmetic, audited against NASA JPL Horizons, live, for one body in one chart, keyed `<birth key>|<body>` (checkId).
     `agreementArcsec` is the difference in arcseconds and `agrees` is that against a stated
     one-arcminute tolerance. A check that could not be made carries `agrees: null` and a note —
     an unreachable NASA is not a pass. Ten requests per chart, cached hard: Horizons is paced by
@@ -483,7 +508,7 @@
   visibility: internal
   userAnchor: false
   description: >-
-    One reading, by one reader, of one chart:
+    One reading, by one reader, of one chart, keyed `<birth key>#<astrologer>#<natal|YYYY-MM-DD>`:
     `1962-05-17T14:30|51.5074,-0.1278|Europe/London#hypatia#natal`. The scope is `natal` or an
     explicit date (`2026-10-03`) for a reading of that day's sky against the chart; never `today`,
     because a reading cached under that name would be yesterday's answer. The astrologer is part of
@@ -499,7 +524,7 @@
 - name: Reading
   userAnchor: false
   description: >-
-    An astrologer's reading of a computed chart — a model's judgement with the `astrology-reading`
+    One astrologer's reading of a computed chart, keyed by its reading key (readingId) — a model's judgement with the `astrology-reading`
     skill attached, over positions it was given rather than any it recalled. `caveats` is computed
     from the chart rather than left to the prose: a chart with no birth time carries "no ascendant"
     as data even if the reading forgets to say it, so a view can filter on it and a page can print
@@ -528,9 +553,9 @@
       cardinality: LIST
       description: "What this chart could not support, computed from the chart itself. Empty when the birth data is complete."
     sunSign: "The Sun's sign, repeated here so a reading can be listed without re-reading the chart."
-    moonSign: "The Moon's sign."
+    moonSign: "The tropical zodiac sign the Moon is in, repeated from the chart."
     risingSign: "The rising sign. Null without a birth time."
-    role: "The LLM role that produced it. A reading is not reproducible, and this says who to ask about it."
+    role: "The world's LLM role name that produced it, or null for the default role; a free name, not a fixed list. A reading is not reproducible, and this says who to ask about it."
 
 # ── What a reader remembers about a conversation ───────────────────────────────────────────────
 #

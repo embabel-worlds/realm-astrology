@@ -26,7 +26,9 @@
            c.moonSignAmbiguous AS moonSignUncertain
 
 - name: MyPlacements
-  description: Every body in your own chart, from the birth data this world holds.
+  description: >-
+    Every body in your own chart, from the birth data this world holds. Returns nothing if no
+    BirthRecord is stored for the subject; Sun to Pluto only.
   params:
     subject: { type: string, default: "self", description: "Whose record to read." }
   cypher: |
@@ -35,7 +37,9 @@
     ORDER BY p.longitude
 
 - name: MyTransits
-  description: What the sky is doing to YOUR chart on a given day, slow bodies first — those are the ones that last long enough to mean anything.
+  description: >-
+    What the sky is doing to your own chart on a given day, slow bodies first. Those are the ones
+    that last long enough to mean anything. Major aspects only; nothing if no BirthRecord is stored.
   params:
     subject: { type: string, default: "self", description: "Whose record to read." }
     on:
@@ -55,7 +59,9 @@
       t.orb
 
 - name: MyReading
-  description: One of the four astrologers reading your own chart. `scope` is `natal`, or a date for that day's sky.
+  description: >-
+    One of the four astrologers reading your own chart. `scope` is `natal`, or a date for that day's
+    sky. Empty, not an error, if no BirthRecord is stored for the subject.
   params:
     subject: { type: string, default: "self", description: "Whose record to read." }
     astrologer:
@@ -72,7 +78,10 @@
     RETURN r.astrologerName AS astrologer, r.reading AS reading, r.caveats AS caveats
 
 - name: PeopleIKeep
-  description: Everyone whose birth data this world holds, with their signs — and which of them have no birth time, so you know whose chart is missing its houses.
+  description: >-
+    Everyone whose birth data this world holds, with their signs. And which of them have no birth
+    time, so you know whose chart is missing its houses. Only stored BirthRecords; nobody looked up
+    but not kept.
   cypher: |
     MATCH (b:BirthRecord)-[:HAS_CHART]->(c:NatalChart)
     RETURN b.subject AS subject, b.relationship AS relationship,
@@ -84,7 +93,10 @@
     ORDER BY b.subject
 
 - name: BirthdaysComing
-  description: Whose birthday falls in the next so-many days, from the birth records this world holds — with the sign the Sun will be in. A real use for birth data that has nothing to do with astrology.
+  description: >-
+    Whose birthday falls in the next so-many days, with the Sun's sign. From the birth records this
+    world holds, and only those with a birth date. A real use for birth data that has nothing to do
+    with astrology.
   params:
     withinDays:
       type: int
