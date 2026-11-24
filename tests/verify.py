@@ -5,8 +5,8 @@ computes its charts itself, and the ground truth is NASA JPL Horizons, which nee
     APPLIANCE=http://127.0.0.1:11043 AUTH=user:pass sh tests/verify.sh
 
   L1  every view answers BY NAME on its defaults. The "yours" views read stored BirthRecords, and
-      a fresh world has none, so they must succeed and may be empty. The CI joins read
-      realm-github-actions' labels and are skipped, saying so, when it is not installed.
+      a fresh world has none, so they must answer empty or be refused for want of a stored
+      record. The CI joins read realm-github-actions' workflow runs, and are empty without it.
   L2  the positions reconcile with NASA, asked DIRECTLY here rather than through the realm's own
       audit verb: Sun, Moon and Mars at the default sky instant, within the realm's stated
       one-arcminute tolerance; and the realm's own audit reports all ten bodies agreeing.
@@ -23,7 +23,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from battery_common import check, finish, invoke, kg, problem, sweep, yaml_view_names  # noqa: E402
 
 sweep(yaml_view_names(),
-      may_be_empty={"MyChart", "MyPlacements", "MyTransits", "MyReading", "PeopleIKeep", "BirthdaysComing"},
+      may_be_empty={"MyChart", "MyPlacements", "MyTransits", "MyReading", "PeopleIKeep", "BirthdaysComing",
+                    # With no realm-github-actions installed there are no workflow runs to join to.
+                    "BuildsUnderMercuryRetrograde", "BuildFailuresByMoonPhase"},
       needs_companion={"BuildsUnderMercuryRetrograde": "realm-github-actions",
                        "BuildFailuresByMoonPhase": "realm-github-actions"})
 
@@ -58,7 +60,7 @@ env = invoke("AuditAgainstNasa")
 rows = env.get("data") or []
 check("AuditAgainstNasa: ten bodies audited", len(rows) == 10 and not problem(env), problem(env) or f"{len(rows)} rows")
 disagree = [r for r in rows if r.get("agrees") is not True]
-check("AuditAgainstNasa: every body agrees", not disagree, json.dumps(disagree)[:300])
+check("AuditAgainstNasa: every body agrees", rows and not disagree, json.dumps(disagree)[:300])
 
 print("== L3: a one-body audit asks NASA about one body")
 SPEC = "1962-05-17T14:30|51.5074,-0.1278|Europe/London"
@@ -66,9 +68,10 @@ res = kg(f"MATCH (b:BirthMoment {{spec: '{SPEC}'}})-[:VERIFIED_BY {{ai: {{fresh:
          "WHERE c.body = 'Mars' RETURN c.body AS body, c.agrees AS agrees")
 rows = res.get("rows") or []
 check("Mars only, fresh", [r.get("body") for r in rows] == ["Mars"], json.dumps(res)[:300] if not rows else "")
-# The verb is one call either way; what the pushdown changes is how many audit rows come back from
-# it, and so how many Horizons requests it made: one, not ten.
-fetched = res.get("fetchedRecords")
-check("one body fetched, not ten", fetched == 1, f"fetchedRecords={fetched}, apiCalls={res.get('apiCalls')}")
+# The verb is one call either way; the pushdown is what that call carries. The call log records the
+# rendered filter, so a pushed body shows on the call, and an unpushed one asks for all ten.
+log = res.get("apiCallLog") or []
+check("one nasaChecks call, asked for Mars only", len(log) == 1 and log[0].startswith("nasaChecks(") and log[0].rstrip().endswith("Mars"),
+      f"apiCallLog={log}")
 
 finish()
