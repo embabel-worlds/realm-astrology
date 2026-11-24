@@ -6,7 +6,7 @@ computes its charts itself, and the ground truth is NASA JPL Horizons, which nee
 
   L1  every view answers BY NAME on its defaults. The "yours" views read stored BirthRecords, and
       a fresh world has none, so they must answer empty or be refused for want of a stored
-      record. The CI joins read realm-github-actions' workflow runs, and are empty without it.
+      record.
   L2  the positions reconcile with NASA, asked DIRECTLY here rather than through the realm's own
       audit verb: Sun, Moon and Mars at the default sky instant, within the realm's stated
       one-arcminute tolerance; and the realm's own audit reports all ten bodies agreeing.
@@ -24,11 +24,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from battery_common import check, finish, invoke, kg, problem, sweep, yaml_view_names  # noqa: E402
 
 sweep(yaml_view_names(),
-      may_be_empty={"MyChart", "MyPlacements", "MyTransits", "MyReading", "PeopleIKeep", "BirthdaysComing",
-                    # With no realm-github-actions installed there are no workflow runs to join to.
-                    "BuildsUnderMercuryRetrograde", "BuildFailuresByMoonPhase"},
-      needs_companion={"BuildsUnderMercuryRetrograde": "realm-github-actions",
-                       "BuildFailuresByMoonPhase": "realm-github-actions"})
+      may_be_empty={"MyChart", "MyPlacements", "MyTransits", "MyReading", "PeopleIKeep", "BirthdaysComing"})
 
 print("== L2: positions against NASA JPL Horizons, asked directly")
 INSTANT = "2026-10-03T12:00:00Z"

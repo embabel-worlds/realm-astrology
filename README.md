@@ -93,18 +93,12 @@ cannot confuse them.
 ## The sky over your own data
 
 `SkyMoment` is keyed on an instant and nothing else, so anything with a timestamp can be
-given a sky — a workflow run, an invoice, a conversation. `views/joins.yml` does this for
-CI history, and **computes its own denominator**:
-
-```
-mercuryRetrograde  runs  failures  failureRatePercent
-false              …     …         …
-true               …     …         …
-```
-
-Mercury is retrograde about a fifth of all time. If a fifth of your failed builds happened
-under it, nothing happened — and the view says so rather than leaving a reader to be
-impressed by the numerator. A joke with a correct denominator is the only kind worth telling.
+given a sky — a workflow run, an invoice, a conversation. `SkyWhenThisHappened` in
+`views/joins.yml` is that join in its general form: any ISO instant from any realm's data, and the
+positions above it. A join to another realm's records — CI runs, deals, messages — belongs in a
+realm that composes the two, so this one depends on nothing else; and a view that reports a
+correlation found that way should show its base rate beside it. Mercury is retrograde about a fifth
+of all time, so a fifth of anything happening under it means nothing happened.
 
 ## The Wheel
 
@@ -165,9 +159,6 @@ longitude. Every row count still matched, so curl saw a working app and a browse
 
 - **No sidereal zodiac and no Vedic reading.** That needs an ayanamsa this realm does not
   compute, and offering one without it would be inventing an offset.
-- **The CI-join views are written against realm-github-actions' declared contract but have
-  not been reconciled against a real run history** — GitHub was unreachable from the
-  appliance when they were authored. Run them before trusting a figure.
 
 ## Install
 
