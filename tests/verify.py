@@ -32,7 +32,8 @@ HORIZONS_ID = {"Sun": "10", "Moon": "301", "Mars": "499"}
 res = kg(f"MATCH (s:SkyMoment {{instant: '{INSTANT}'}})-[:HAS_POSITION]->(p:SkyPosition) "
          "RETURN p.body AS body, p.longitude AS lon")
 ours = {r["body"]: r["lon"] for r in res.get("rows") or []}
-check("SkyAtMoment has all ten bodies", len(ours) == 10, f"{sorted(ours)}")
+check("SkyAtMoment has all ten bodies", len(ours) == 10 and not problem(res, len(ours)),
+      problem(res, len(ours)) or f"{sorted(ours)}")
 
 
 def horizons(body_id):
@@ -49,13 +50,13 @@ def horizons(body_id):
 for body, hid in HORIZONS_ID.items():
     nasa = horizons(hid)
     got = ours.get(body)
-    off = None if got is None else abs(((got - nasa + 540) % 360) - 180) * 3600
+    off = None if got is None or problem(res) else abs(((got - nasa + 540) % 360) - 180) * 3600
     check(f"{body} longitude agrees with Horizons within 60\"", off is not None and off <= 60,
-          f"realm {got}, NASA {nasa:.6f}, {off if off is None else round(off, 2)}\"")
+          problem(res, got) or f"realm {got}, NASA {nasa:.6f}, {off if off is None else round(off, 2)}\"")
 
 env = invoke("AuditAgainstNasa")
 rows = env.get("data") or []
-check("AuditAgainstNasa: ten bodies audited", len(rows) == 10 and not problem(env), problem(env) or f"{len(rows)} rows")
+check("AuditAgainstNasa: ten bodies audited", len(rows) == 10 and not problem(env), problem(env, len(rows)) or f"{len(rows)} rows")
 disagree = [r for r in rows if r.get("withinTolerance") is not True]
 check("AuditAgainstNasa: every body agrees", rows and not disagree, json.dumps(disagree)[:300])
 
@@ -64,7 +65,8 @@ SPEC = "1962-05-17T14:30|51.5074,-0.1278|Europe/London"
 res = kg(f"MATCH (b:BirthMoment {{spec: '{SPEC}'}})-[:VERIFIED_BY {{ai: {{fresh: true}}}}]->(c:NasaCheck) "
          "WHERE c.body = 'Mars' RETURN c.body AS body, c.agrees AS agrees")
 rows = res.get("rows") or []
-check("Mars only, fresh", [r.get("body") for r in rows] == ["Mars"], json.dumps(res)[:300] if not rows else "")
+check("Mars only, fresh", [r.get("body") for r in rows] == ["Mars"] and not problem(res, len(rows)),
+      problem(res, len(rows)) or (json.dumps(res)[:300] if not rows else ""))
 # The verb is one call either way; the pushdown is what that call carries. The call log records the
 # rendered filter, so a pushed body shows on the call, and an unpushed one asks for all ten.
 log = res.get("apiCallLog") or []
